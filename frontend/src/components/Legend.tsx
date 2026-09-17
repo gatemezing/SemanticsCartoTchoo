@@ -78,11 +78,24 @@ export function Legend() {
             width: 12,
             height: 12,
             borderRadius: "50%",
-            border: "2px solid #7c3aed",
+            border: "1.5px solid #7c3aed",
             flexShrink: 0,
           }}
         />
         <span>Primary location (ring around a point)</span>
+      </div>
+      <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 4 }}>
+        <span
+          style={{
+            display: "inline-block",
+            width: 12,
+            height: 12,
+            borderRadius: "50%",
+            border: "2.5px solid #d97706",
+            flexShrink: 0,
+          }}
+        />
+        <span>...with Wikidata accessibility info</span>
       </div>
     </div>
   );

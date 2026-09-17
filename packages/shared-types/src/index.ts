@@ -74,6 +74,25 @@ export type TunnelsCollection = GeoJSON.FeatureCollection<
   TunnelProperties
 >;
 
+/** Deliberately NOT a FieldValue-shaped type: Wikidata enrichment isn't a
+ *  RINF completeness contract (it's a different, optional, third-party
+ *  source), so it doesn't borrow the "not_applicable / not_available_in_rinf"
+ *  vocabulary. Every field is optional and simply absent when Wikidata
+ *  doesn't have it; `sourceUrl` is mandatory whenever this object exists at
+ *  all, since showing any Wikidata-sourced fact without a way to trace it
+ *  back to Wikidata is the one thing this feature must never do. */
+export interface WikidataStationInfo {
+  qid: string;
+  label?: string;
+  /** e.g. "wheelchair accessible", "wheelchair accessible with help",
+   *  "wheelchair inaccessible" (wdt:P2846, label-resolved). */
+  wheelchairAccessibility?: string;
+  /** e.g. "gratis" (wdt:P2848, label-resolved). */
+  wifi?: string;
+  platformCount?: number;
+  sourceUrl: string;
+}
+
 /** era:PrimaryLocation — a distinct RINF entity (e.g. a commercial/ticketing
  *  location code) attached to an OperationalPoint via era:primaryLocation.
  *  An operational point can have zero, one, or several of these; each one
@@ -85,6 +104,10 @@ export interface PrimaryLocationProperties {
   operationalPointUopid: string;
   operationalPointName: FieldValue<string>;
   operationalPointRinfUri: string;
+  /** Present only when era:primaryLocationCode has a matching Wikidata
+   *  station (joined on Wikidata's PLC property, wdt:P12783) — absent, not
+   *  "not available", when there's no match (see WikidataStationInfo). */
+  wikidata?: WikidataStationInfo;
 }
 
 export type PrimaryLocationFeature = GeoJSON.Feature<

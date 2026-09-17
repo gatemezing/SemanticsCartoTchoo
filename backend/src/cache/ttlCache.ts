@@ -16,6 +16,10 @@ const inFlight = new Map<string, Promise<unknown>>();
 export async function getOrLoad<T>(
   key: string,
   load: () => Promise<T>,
+  /** Overrides the default TTL for this entry — e.g. Wikidata data changes
+   *  slowly and its query service rate-limits aggressively, so it's worth
+   *  caching longer than RINF's own 6h default. */
+  ttlMs?: number,
 ): Promise<T> {
   const cached = store.get(key);
   if (cached !== undefined) return cached.v as T;
@@ -25,7 +29,7 @@ export async function getOrLoad<T>(
 
   const promise = load()
     .then((value) => {
-      store.set(key, { v: value });
+      store.set(key, { v: value }, ttlMs ? { ttl: ttlMs } : undefined);
       return value;
     })
     .finally(() => {

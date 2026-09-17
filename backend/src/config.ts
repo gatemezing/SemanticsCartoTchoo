@@ -30,3 +30,19 @@ export function countryAuthorityUri(uopidPrefix: string): string {
 }
 
 export const PORT = Number(process.env.PORT ?? 3001);
+
+export const WIKIDATA_SPARQL_ENDPOINT = "https://query.wikidata.org/sparql";
+
+/** Wikidata's query service etiquette expects a descriptive User-Agent
+ *  identifying the project and a contact URL, and will otherwise rate-limit
+ *  more aggressively (confirmed live: hit a 429 during development without
+ *  one — well-formed UA plus a few seconds' backoff cleared it). */
+export const WIKIDATA_USER_AGENT =
+  "CartoRinf/0.1 (https://github.com/gatemezing/SemanticsCartoTchoo)";
+
+export const WIKIDATA_TIMEOUT_MS = 30_000;
+
+/** Wikidata edits are infrequent relative to a browsing session and its
+ *  query service rate-limits hard, so this is cached longer than RINF's
+ *  own 6h default. */
+export const WIKIDATA_CACHE_TTL_MS = 24 * 60 * 60 * 1000;

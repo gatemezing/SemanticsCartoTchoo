@@ -8,6 +8,7 @@ import { DEFAULT_COUNTRY_UOPID_PREFIX } from "../config.js";
 import { mapPrimaryLocations } from "../mapping/primaryLocations.js";
 import { runSparqlSelect, SparqlQueryError } from "../sparql/client.js";
 import { buildPrimaryLocationsQuery } from "../sparql/queries.js";
+import { getWikidataStationsByPlc } from "../wikidata/service.js";
 
 export function registerPrimaryLocationsRoute(app: FastifyInstance): void {
   app.get("/api/primary-locations", async (request, reply) => {
@@ -18,10 +19,16 @@ export function registerPrimaryLocationsRoute(app: FastifyInstance): void {
     try {
       const data = await getOrLoad<PrimaryLocationsCollection>(
         `primary-locations:${country}`,
-        async () =>
-          mapPrimaryLocations(
-            await runSparqlSelect(buildPrimaryLocationsQuery(country)),
-          ),
+        async () => {
+          // Wikidata enrichment has its own, longer-lived cache (see
+          // getWikidataStationsByPlc) and never fails this request — it
+          // degrades to "no enrichment" instead.
+          const [rinfResults, wikidataByPlc] = await Promise.all([
+            runSparqlSelect(buildPrimaryLocationsQuery(country)),
+            getWikidataStationsByPlc(),
+          ]);
+          return mapPrimaryLocations(rinfResults, wikidataByPlc);
+        },
       );
       const body: ApiEnvelope<PrimaryLocationsCollection> = {
         status: "ok",

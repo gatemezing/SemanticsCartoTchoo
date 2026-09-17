@@ -143,12 +143,23 @@ export function MapView({
         paint: {
           // Thin, semi-transparent halo just outside the operational-point
           // dot — a hint that's easy to click but doesn't compete with the
-          // dot's own color for attention.
+          // dot's own color for attention. Rings with Wikidata-sourced
+          // accessibility data recolor to gold and stand out further, so
+          // that coverage is visible on the map without clicking every
+          // point (see Legend for what each ring color means).
           "circle-radius": ["interpolate", ["linear"], ["zoom"], 8, 5, 14, 9],
           "circle-color": "rgba(0,0,0,0)",
-          "circle-stroke-color": "#7c3aed",
-          "circle-stroke-width": 1.5,
-          "circle-stroke-opacity": 0.55,
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          "circle-stroke-color": [
+            "case",
+            ["has", "wikidata"],
+            "#d97706",
+            "#7c3aed",
+          ] as any,
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          "circle-stroke-width": ["case", ["has", "wikidata"], 2.5, 1.5] as any,
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          "circle-stroke-opacity": ["case", ["has", "wikidata"], 0.9, 0.55] as any,
         },
       });
 

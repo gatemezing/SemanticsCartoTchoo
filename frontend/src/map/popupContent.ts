@@ -1,6 +1,7 @@
 import type {
   PrimaryLocationProperties,
   TunnelProperties,
+  WikidataStationInfo,
 } from "@carto-rinf/shared-types";
 import {
   describeFieldValue,
@@ -66,6 +67,42 @@ export function buildTunnelPopup(
   return container;
 }
 
+/** Renders only the fields Wikidata actually has (never a "not available"
+ *  placeholder — this is optional third-party enrichment, not a RINF
+ *  completeness contract), visually set apart from the RINF-sourced rows
+ *  above, and always ending in a link back to the source item: no
+ *  Wikidata-derived fact is shown here without a way to trace it back. */
+function buildWikidataSection(wikidata: WikidataStationInfo): HTMLElement {
+  const section = document.createElement("div");
+  section.style.marginTop = "8px";
+  section.style.paddingTop = "8px";
+  section.style.borderTop = "1px solid #e5e7eb";
+
+  const header = document.createElement("div");
+  header.style.fontWeight = "700";
+  header.style.color = "#1a5fb4";
+  header.style.marginBottom = "4px";
+  header.textContent = `From Wikidata${wikidata.label ? `: ${wikidata.label}` : ""}`;
+  section.appendChild(header);
+
+  if (wikidata.wheelchairAccessibility) {
+    section.appendChild(
+      row("Wheelchair accessibility", wikidata.wheelchairAccessibility, false),
+    );
+  }
+  if (wikidata.wifi) {
+    section.appendChild(row("Wi-Fi", wikidata.wifi, false));
+  }
+  if (wikidata.platformCount !== undefined) {
+    section.appendChild(
+      row("Platforms", String(wikidata.platformCount), false),
+    );
+  }
+
+  section.appendChild(link(wikidata.sourceUrl, "via Wikidata →"));
+  return section;
+}
+
 /** Always shows a reference back to the parent operational point — both as
  *  text and as a working link to that point's own RINF record — since a
  *  primary location only makes sense in relation to the point it belongs
@@ -79,6 +116,7 @@ export function buildPrimaryLocationPopup(
     operationalPointUopid: rawProperties.operationalPointUopid as string,
     operationalPointName: parseMaybeJson(rawProperties.operationalPointName),
     operationalPointRinfUri: rawProperties.operationalPointRinfUri as string,
+    wikidata: parseMaybeJson(rawProperties.wikidata),
   };
 
   const container = document.createElement("div");
@@ -103,5 +141,10 @@ export function buildPrimaryLocationPopup(
   container.appendChild(
     link(props.operationalPointRinfUri, "View operational point's RINF record →"),
   );
+
+  if (props.wikidata) {
+    container.appendChild(buildWikidataSection(props.wikidata));
+  }
+
   return container;
 }
