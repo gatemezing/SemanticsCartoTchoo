@@ -1,18 +1,26 @@
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
+import type {
+  PrimaryLocationsCollection,
+  TunnelsCollection,
+} from "@carto-rinf/shared-types";
 import {
+  fetchCountries,
   fetchOperationalPoints,
   fetchPrimaryLocations,
   fetchSectionsOfLine,
   fetchTunnels,
 } from "./api/client";
+import { CountrySelector } from "./components/CountrySelector";
 import { DetailPanel } from "./components/DetailPanel";
 import { ErrorBanner } from "./components/ErrorBanner";
 import { Legend } from "./components/Legend";
 import { LoadingOverlay } from "./components/LoadingOverlay";
+import { OptionalLayerWarning } from "./components/OptionalLayerWarning";
 import { SearchBox } from "./components/SearchBox";
 import { MapView, type FlyToTarget } from "./map/MapView";
 import {
+  DEFAULT_COUNTRY,
   DEFAULT_VIEWPORT,
   formatRoute,
   parseRoute,
@@ -21,7 +29,14 @@ import {
 
 const initialRoute = parseRoute(window.location.pathname);
 
+const EMPTY_TUNNELS: TunnelsCollection = { type: "FeatureCollection", features: [] };
+const EMPTY_PRIMARY_LOCATIONS: PrimaryLocationsCollection = {
+  type: "FeatureCollection",
+  features: [],
+};
+
 export function App() {
+  const [country, setCountry] = useState(initialRoute.country ?? DEFAULT_COUNTRY);
   const [selectedUopid, setSelectedUopid] = useState<string | null>(
     initialRoute.uopid,
   );
@@ -31,33 +46,71 @@ export function App() {
   );
   const isFirstSelectionEffect = useRef(true);
 
+  const countries = useQuery({ queryKey: ["countries"], queryFn: fetchCountries });
   const operationalPoints = useQuery({
-    queryKey: ["operational-points"],
-    queryFn: fetchOperationalPoints,
+    queryKey: ["operational-points", country],
+    queryFn: () => fetchOperationalPoints(country),
   });
   const sectionsOfLine = useQuery({
-    queryKey: ["sections-of-line"],
-    queryFn: fetchSectionsOfLine,
+    queryKey: ["sections-of-line", country],
+    queryFn: () => fetchSectionsOfLine(country),
   });
+  // Tunnels and primary locations are enhancement layers, not the core map —
+  // some countries' primary-locations query is heavy enough to occasionally
+  // exceed the RINF endpoint's own server-side timeout (confirmed live on
+  // Germany: a 503 from the endpoint itself after ~120s, not something a
+  // longer client timeout can wait out). Their failure degrades to "map
+  // without that layer", not a full-page error blocking a country that's
+  // otherwise working fine. No retry: a timeout this deterministic just
+  // fails the same way again, and retrying only doubles how long the user
+  // waits before seeing the "unavailable" note instead of a silent gap.
   const tunnels = useQuery({
-    queryKey: ["tunnels"],
-    queryFn: fetchTunnels,
+    queryKey: ["tunnels", country],
+    queryFn: () => fetchTunnels(country),
+    retry: false,
   });
   const primaryLocations = useQuery({
-    queryKey: ["primary-locations"],
-    queryFn: fetchPrimaryLocations,
+    queryKey: ["primary-locations", country],
+    queryFn: () => fetchPrimaryLocations(country),
+    retry: false,
   });
 
-  const queries = [operationalPoints, sectionsOfLine, tunnels, primaryLocations];
-  const isLoading = queries.some((q) => q.isLoading);
-  const error = queries.find((q) => q.error)?.error;
-  const allLoaded = queries.every((q) => q.data);
+  const coreQueries = [countries, operationalPoints, sectionsOfLine];
+  const isLoading = coreQueries.some((q) => q.isLoading);
+  const error = coreQueries.find((q) => q.error)?.error;
+  const allLoaded = coreQueries.every((q) => q.data);
+
+  const optionalLayerFailures = [
+    tunnels.error && "Tunnels",
+    primaryLocations.error && "Primary locations",
+  ].filter((x): x is string => Boolean(x));
 
   // Viewport moves are frequent (every pan/zoom) — replace the current
   // history entry rather than push, so panning doesn't flood back/forward.
   const handleViewportChange = (viewport: ViewportState) => {
     viewportRef.current = viewport;
-    window.history.replaceState(null, "", formatRoute(viewport, selectedUopid));
+    window.history.replaceState(
+      null,
+      "",
+      formatRoute(country, viewport, selectedUopid),
+    );
+  };
+
+  const handleCountryChange = (newCode: string) => {
+    setCountry(newCode);
+    setSelectedUopid(null);
+    const info = countries.data?.find((c) => c.code === newCode);
+    if (info) {
+      // Set synchronously so the URL is right immediately, rather than
+      // waiting for the flyTo animation's own moveend to update it.
+      viewportRef.current = info.defaultViewport;
+      setFlyTo({ ...info.defaultViewport, nonce: Date.now() });
+    }
+    window.history.pushState(
+      null,
+      "",
+      formatRoute(newCode, info?.defaultViewport ?? viewportRef.current, null),
+    );
   };
 
   // Selecting/closing an entity is a discrete navigation, worth a
@@ -71,8 +124,9 @@ export function App() {
     window.history.pushState(
       null,
       "",
-      formatRoute(viewportRef.current, selectedUopid),
+      formatRoute(country, viewportRef.current, selectedUopid),
     );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedUopid]);
 
   return (
@@ -82,8 +136,8 @@ export function App() {
           <MapView
             operationalPoints={operationalPoints.data!}
             sectionsOfLine={sectionsOfLine.data!}
-            tunnels={tunnels.data!}
-            primaryLocations={primaryLocations.data!}
+            tunnels={tunnels.data ?? EMPTY_TUNNELS}
+            primaryLocations={primaryLocations.data ?? EMPTY_PRIMARY_LOCATIONS}
             onSelectOperationalPoint={setSelectedUopid}
             initialViewport={viewportRef.current}
             onViewportChange={handleViewportChange}
@@ -96,7 +150,21 @@ export function App() {
               setFlyTo({ lon, lat, nonce: Date.now() });
             }}
           />
+          <CountrySelector
+            countries={countries.data!}
+            value={country}
+            onChange={handleCountryChange}
+          />
           <Legend />
+          {optionalLayerFailures.length > 0 && (
+            <OptionalLayerWarning
+              layers={optionalLayerFailures}
+              onRetry={() => {
+                tunnels.refetch();
+                primaryLocations.refetch();
+              }}
+            />
+          )}
           {selectedUopid && (
             <DetailPanel
               uopid={selectedUopid}
@@ -109,7 +177,7 @@ export function App() {
       {error && !isLoading && (
         <ErrorBanner
           message={error instanceof Error ? error.message : String(error)}
-          onRetry={() => queries.forEach((q) => q.refetch())}
+          onRetry={() => coreQueries.forEach((q) => q.refetch())}
         />
       )}
     </div>

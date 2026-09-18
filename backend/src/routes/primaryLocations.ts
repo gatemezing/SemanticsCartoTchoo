@@ -4,28 +4,27 @@ import type {
   PrimaryLocationsCollection,
 } from "@carto-rinf/shared-types";
 import { getOrLoad } from "../cache/ttlCache.js";
-import { DEFAULT_COUNTRY_UOPID_PREFIX } from "../config.js";
 import { mapPrimaryLocations } from "../mapping/primaryLocations.js";
 import { runSparqlSelect, SparqlQueryError } from "../sparql/client.js";
 import { buildPrimaryLocationsQuery } from "../sparql/queries.js";
 import { getWikidataStationsByPlc } from "../wikidata/service.js";
+import { resolveCountry } from "./resolveCountry.js";
 
 export function registerPrimaryLocationsRoute(app: FastifyInstance): void {
   app.get("/api/primary-locations", async (request, reply) => {
-    const country =
-      (request.query as { country?: string }).country?.toUpperCase() ??
-      DEFAULT_COUNTRY_UOPID_PREFIX;
+    const country = resolveCountry(request, reply);
+    if (!country) return reply;
 
     try {
       const data = await getOrLoad<PrimaryLocationsCollection>(
-        `primary-locations:${country}`,
+        `primary-locations:${country.code}`,
         async () => {
           // Wikidata enrichment has its own, longer-lived cache (see
           // getWikidataStationsByPlc) and never fails this request — it
           // degrades to "no enrichment" instead.
           const [rinfResults, wikidataByPlc] = await Promise.all([
-            runSparqlSelect(buildPrimaryLocationsQuery(country)),
-            getWikidataStationsByPlc(),
+            runSparqlSelect(buildPrimaryLocationsQuery(country.code)),
+            getWikidataStationsByPlc(country),
           ]);
           return mapPrimaryLocations(rinfResults, wikidataByPlc);
         },

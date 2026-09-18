@@ -1,5 +1,6 @@
 import type {
   ApiEnvelope,
+  CountryInfo,
   OperationalPointDetail,
   OperationalPointsCollection,
   PrimaryLocationsCollection,
@@ -28,20 +29,30 @@ async function getEnvelope<T>(url: string): Promise<T> {
   return body.data;
 }
 
-export function fetchOperationalPoints(): Promise<OperationalPointsCollection> {
-  return getEnvelope("/api/operational-points");
+export function fetchCountries(): Promise<CountryInfo[]> {
+  return getEnvelope("/api/countries");
 }
 
-export function fetchSectionsOfLine(): Promise<SectionOfLineCollection> {
-  return getEnvelope("/api/sections-of-line");
+export function fetchOperationalPoints(
+  country: string,
+): Promise<OperationalPointsCollection> {
+  return getEnvelope(`/api/operational-points?country=${country}`);
 }
 
-export function fetchTunnels(): Promise<TunnelsCollection> {
-  return getEnvelope("/api/tunnels");
+export function fetchSectionsOfLine(
+  country: string,
+): Promise<SectionOfLineCollection> {
+  return getEnvelope(`/api/sections-of-line?country=${country}`);
 }
 
-export function fetchPrimaryLocations(): Promise<PrimaryLocationsCollection> {
-  return getEnvelope("/api/primary-locations");
+export function fetchTunnels(country: string): Promise<TunnelsCollection> {
+  return getEnvelope(`/api/tunnels?country=${country}`);
+}
+
+export function fetchPrimaryLocations(
+  country: string,
+): Promise<PrimaryLocationsCollection> {
+  return getEnvelope(`/api/primary-locations?country=${country}`);
 }
 
 export function fetchOperationalPointDetail(

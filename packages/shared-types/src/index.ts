@@ -18,6 +18,31 @@ export interface RinfLink {
   label?: string;
 }
 
+/** One entry in the country registry served by GET /api/countries — see
+ *  backend/src/countries.ts for how each field was derived/verified. */
+export interface CountryInfo {
+  /** The RINF uopid prefix (note: Greece is "EL" here, RINF's own usage,
+   *  not the ISO2 "GR" most other systems use). */
+  code: string;
+  label: string;
+  iso3: string;
+  wikidataQid: string;
+  defaultViewport: { lat: number; lon: number; zoom: number };
+  /** How to pick one version of an entity when RINF's temporal versioning
+   *  offers more than one for the same identity — see queries.ts `validNow`.
+   *  "range" (default when absent): the version whose validity window
+   *  contains today. "annual-begin": the version whose validity *begins*
+   *  in the current calendar year — needed for Germany, confirmed live to
+   *  submit overlapping multi-year windows (e.g. 2025-01-01..2026-12-31
+   *  alongside 2026-01-01..2027-12-31 for the same identity) that "range"
+   *  can't disambiguate since both contain today; picking by begin-year
+   *  resolves it because at most one candidate begins in the current year.
+   *  Not the default because it would wrongly exclude countries (e.g.
+   *  France) whose validity windows are long-lived and don't begin in the
+   *  current year at all. */
+  validityStrategy?: "range" | "annual-begin";
+}
+
 export interface OperationalPointProperties {
   /** era:uopid — country code + alphanumeric operational point code. */
   uopid: string;

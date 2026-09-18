@@ -1,24 +1,21 @@
 import type { FastifyInstance } from "fastify";
 import type { ApiEnvelope, TunnelsCollection } from "@carto-rinf/shared-types";
 import { getOrLoad } from "../cache/ttlCache.js";
-import { countryAuthorityUri, DEFAULT_COUNTRY_UOPID_PREFIX } from "../config.js";
 import { mapTunnels } from "../mapping/tunnels.js";
 import { runSparqlSelect, SparqlQueryError } from "../sparql/client.js";
 import { buildTunnelsQuery } from "../sparql/queries.js";
+import { resolveCountry } from "./resolveCountry.js";
 
 export function registerTunnelsRoute(app: FastifyInstance): void {
   app.get("/api/tunnels", async (request, reply) => {
-    const country =
-      (request.query as { country?: string }).country?.toUpperCase() ??
-      DEFAULT_COUNTRY_UOPID_PREFIX;
+    const country = resolveCountry(request, reply);
+    if (!country) return reply;
 
     try {
       const data = await getOrLoad<TunnelsCollection>(
-        `tunnels:${country}`,
+        `tunnels:${country.code}`,
         async () =>
-          mapTunnels(
-            await runSparqlSelect(buildTunnelsQuery(countryAuthorityUri(country))),
-          ),
+          mapTunnels(await runSparqlSelect(buildTunnelsQuery(country.code))),
       );
       const body: ApiEnvelope<TunnelsCollection> = { status: "ok", data };
       return body;

@@ -13,7 +13,7 @@ export function LoadingOverlay() {
       }}
     >
       <div style={{ textAlign: "center" }}>
-        <div>Loading French railway infrastructure from RINF…</div>
+        <div>Loading railway infrastructure from RINF…</div>
         <div style={{ fontSize: 12, color: "#6b7280", marginTop: 4 }}>
           First load can take up to a minute — the RINF endpoint is queried
           live and then cached.
