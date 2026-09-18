@@ -41,6 +41,9 @@ export function App() {
     initialRoute.uopid,
   );
   const [flyTo, setFlyTo] = useState<FlyToTarget | null>(null);
+  const [hiddenOpTypeKeys, setHiddenOpTypeKeys] = useState<Set<string>>(
+    () => new Set(),
+  );
   const viewportRef = useRef<ViewportState>(
     initialRoute.viewport ?? DEFAULT_VIEWPORT,
   );
@@ -96,9 +99,23 @@ export function App() {
     );
   };
 
+  const toggleOpTypeKeys = (keys: string[]) => {
+    setHiddenOpTypeKeys((prev) => {
+      const next = new Set(prev);
+      const anyVisible = keys.some((k) => !next.has(k));
+      // If some of this row's keys are shown and some hidden, one click
+      // makes them all match (hide) rather than partially toggling.
+      for (const k of keys) (anyVisible ? next.add(k) : next.delete(k));
+      return next;
+    });
+  };
+
   const handleCountryChange = (newCode: string) => {
     setCountry(newCode);
     setSelectedUopid(null);
+    // A type hidden in one country's legend shouldn't silently stay hidden
+    // (and unexplained) after switching to a country where it's relevant.
+    setHiddenOpTypeKeys(new Set());
     const info = countries.data?.find((c) => c.code === newCode);
     if (info) {
       // Set synchronously so the URL is right immediately, rather than
@@ -142,6 +159,7 @@ export function App() {
             initialViewport={viewportRef.current}
             onViewportChange={handleViewportChange}
             flyTo={flyTo}
+            hiddenOpTypeKeys={hiddenOpTypeKeys}
           />
           <SearchBox
             operationalPoints={operationalPoints.data!}
@@ -155,7 +173,14 @@ export function App() {
             value={country}
             onChange={handleCountryChange}
           />
-          <Legend />
+          <Legend
+            operationalPoints={operationalPoints.data!}
+            sectionsOfLine={sectionsOfLine.data!}
+            tunnels={tunnels.data ?? EMPTY_TUNNELS}
+            primaryLocations={primaryLocations.data ?? EMPTY_PRIMARY_LOCATIONS}
+            hiddenOpTypeKeys={hiddenOpTypeKeys}
+            onToggleOpTypeKeys={toggleOpTypeKeys}
+          />
           {optionalLayerFailures.length > 0 && (
             <OptionalLayerWarning
               layers={optionalLayerFailures}

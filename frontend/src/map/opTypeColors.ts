@@ -26,17 +26,54 @@ export const OP_TYPE_COLORS: Record<string, string> = {
   "domestic border point": "#e34948",
 };
 
+export interface LegendEntry {
+  label: string;
+  color: string;
+  /** The underlying opTypeKey value(s) this row represents — more than one
+   *  for a merged synonym row (station/passenger stop share a color), so a
+   *  click can hide/show all of them together. */
+  keys: string[];
+}
+
 /** What the legend actually shows — one row per distinct color, with
  *  synonyms (station/passenger stop) merged into a single label. */
-export const LEGEND_ENTRIES: [label: string, color: string][] = [
-  ["junction", OP_TYPE_COLORS.junction],
-  ["depot or workshop", OP_TYPE_COLORS["depot or workshop"]],
-  ["station / passenger stop", OP_TYPE_COLORS.station],
-  ["private siding", OP_TYPE_COLORS["private siding"]],
-  ["technical change", OP_TYPE_COLORS["technical change"]],
-  ["freight terminal", OP_TYPE_COLORS["freight terminal"]],
-  ["train technical services", OP_TYPE_COLORS["train technical services"]],
-  ["domestic border point", OP_TYPE_COLORS["domestic border point"]],
+export const LEGEND_ENTRIES: LegendEntry[] = [
+  { label: "junction", color: OP_TYPE_COLORS.junction, keys: ["junction"] },
+  {
+    label: "depot or workshop",
+    color: OP_TYPE_COLORS["depot or workshop"],
+    keys: ["depot or workshop"],
+  },
+  {
+    label: "station / passenger stop",
+    color: OP_TYPE_COLORS.station,
+    keys: ["station", "passenger stop"],
+  },
+  {
+    label: "private siding",
+    color: OP_TYPE_COLORS["private siding"],
+    keys: ["private siding"],
+  },
+  {
+    label: "technical change",
+    color: OP_TYPE_COLORS["technical change"],
+    keys: ["technical change"],
+  },
+  {
+    label: "freight terminal",
+    color: OP_TYPE_COLORS["freight terminal"],
+    keys: ["freight terminal"],
+  },
+  {
+    label: "train technical services",
+    color: OP_TYPE_COLORS["train technical services"],
+    keys: ["train technical services"],
+  },
+  {
+    label: "domestic border point",
+    color: OP_TYPE_COLORS["domestic border point"],
+    keys: ["domestic border point"],
+  },
 ];
 
 export const OTHER_LABEL = "Other / not available";
@@ -72,6 +109,24 @@ export function withOpTypeKey<
   };
 }
 
+/** Which opTypeKey values actually occur in this country's data — used to
+ *  hide legend rows for categories that don't exist here (e.g. most
+ *  countries have zero "domestic border point"s), rather than always
+ *  listing all 8+1 regardless of relevance. */
+export function presentOpTypeKeys<
+  P extends { opType: { status: string; value?: { label?: string } } },
+>(collection: GeoJSON.FeatureCollection<GeoJSON.Point, P>): Set<string> {
+  const present = new Set<string>();
+  for (const f of collection.features) {
+    const label =
+      f.properties.opType.status === "value"
+        ? f.properties.opType.value?.label
+        : undefined;
+    present.add(label && label in OP_TYPE_COLORS ? label : OTHER_LABEL);
+  }
+  return present;
+}
+
 /** A MapLibre `match` expression mapping the flat `opTypeKey` (see
  *  withOpTypeKey) to its color, defaulting to OTHER_COLOR. Typed loosely —
  *  maplibre-gl's expression types are a large recursive union that a plain
@@ -82,4 +137,12 @@ export function opTypeColorMatchExpression(): unknown[] {
     color,
   ]);
   return ["match", ["get", "opTypeKey"], ...pairs, OTHER_COLOR];
+}
+
+/** A MapLibre filter expression hiding features whose opTypeKey is in the
+ *  given set — backs the legend's click-to-toggle-visibility rows. */
+export function hiddenOpTypeKeysFilterExpression(
+  hidden: Set<string>,
+): unknown[] {
+  return ["!", ["in", ["get", "opTypeKey"], ["literal", [...hidden]]]];
 }

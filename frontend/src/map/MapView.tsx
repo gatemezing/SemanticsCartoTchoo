@@ -13,7 +13,11 @@ import type {
   SectionOfLineCollection,
   TunnelsCollection,
 } from "@carto-rinf/shared-types";
-import { opTypeColorMatchExpression, withOpTypeKey } from "./opTypeColors";
+import {
+  hiddenOpTypeKeysFilterExpression,
+  opTypeColorMatchExpression,
+  withOpTypeKey,
+} from "./opTypeColors";
 import { buildPrimaryLocationPopup, buildTunnelPopup } from "./popupContent";
 import type { ViewportState } from "../routing/viewportUrl";
 
@@ -58,6 +62,7 @@ interface Props {
   initialViewport: ViewportState;
   onViewportChange: (viewport: ViewportState) => void;
   flyTo: FlyToTarget | null;
+  hiddenOpTypeKeys: Set<string>;
 }
 
 export function MapView({
@@ -69,6 +74,7 @@ export function MapView({
   initialViewport,
   onViewportChange,
   flyTo,
+  hiddenOpTypeKeys,
 }: Props) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<MapLibreMap | null>(null);
@@ -176,6 +182,8 @@ export function MapView({
         id: "operational-points-layer",
         type: "circle",
         source: OPERATIONAL_POINTS_SOURCE,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        filter: hiddenOpTypeKeysFilterExpression(hiddenOpTypeKeys) as any,
         paint: {
           "circle-radius": ["interpolate", ["linear"], ["zoom"], 5, 2, 12, 6],
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -275,6 +283,16 @@ export function MapView({
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [flyTo?.nonce]);
+
+  useEffect(() => {
+    if (!mapRef.current?.getLayer("operational-points-layer")) return;
+    mapRef.current.setFilter(
+      "operational-points-layer",
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      hiddenOpTypeKeysFilterExpression(hiddenOpTypeKeys) as any,
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hiddenOpTypeKeys]);
 
   return <div ref={containerRef} style={{ position: "absolute", inset: 0 }} />;
 }
