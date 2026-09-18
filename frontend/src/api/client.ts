@@ -8,10 +8,18 @@ import type {
   TunnelsCollection,
 } from "@carto-rinf/shared-types";
 
-async function getEnvelope<T>(url: string): Promise<T> {
+/** Empty by default: same-origin relative `/api/...` calls, which is what
+ *  local dev (Vite's proxy) and the Docker Compose setup (nginx proxies
+ *  `/api` to the backend container) both rely on. A static deployment with
+ *  no same-origin backend (e.g. GitHub Pages) sets VITE_API_BASE_URL at
+ *  build time to an absolute URL of a separately-hosted backend instead —
+ *  the backend's CORS is already wide open, so cross-origin calls work. */
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "";
+
+async function getEnvelope<T>(path: string): Promise<T> {
   let response: Response;
   try {
-    response = await fetch(url);
+    response = await fetch(`${API_BASE_URL}${path}`);
   } catch {
     throw new Error("Could not reach the backend API — is it running?");
   }

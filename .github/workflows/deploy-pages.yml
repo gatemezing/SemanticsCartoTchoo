@@ -1,0 +1,55 @@
+name: Deploy frontend to GitHub Pages
+
+# GitHub Pages only serves static files — it cannot run the Node/Fastify
+# backend. This publishes the frontend build only. For it to actually work
+# once live, a backend needs to be reachable somewhere (e.g. the Docker
+# image in this repo, run on any host) and its URL set as the repository
+# variable VITE_API_BASE_URL (Settings > Secrets and variables > Actions >
+# Variables). Left unset, the build defaults to relative /api/... calls,
+# which will 404 on Pages since there's no same-origin backend there.
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "frontend/**"
+      - "packages/shared-types/**"
+      - ".github/workflows/deploy-pages.yml"
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run build --workspace=@carto-rinf/shared-types
+      - run: npm run build --workspace=frontend
+        env:
+          VITE_API_BASE_URL: ${{ vars.VITE_API_BASE_URL }}
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: frontend/dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
