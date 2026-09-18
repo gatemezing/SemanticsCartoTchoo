@@ -20,6 +20,11 @@ import type { ViewportState } from "../routing/viewportUrl";
 export interface FlyToTarget {
   lon: number;
   lat: number;
+  /** Omit for a search result (zooms in from wherever the map currently
+   *  is, never out); pass explicitly for a country switch (jumps straight
+   *  to that country's own overview zoom, which may well be *less* zoomed
+   *  in than the current view). */
+  zoom?: number;
   /** Bump this on every request so a repeat click on the same result still
    *  triggers a flyTo (React only re-runs the effect when a dependency
    *  actually changes). */
@@ -266,7 +271,7 @@ export function MapView({
     if (!flyTo || !mapRef.current) return;
     mapRef.current.flyTo({
       center: [flyTo.lon, flyTo.lat],
-      zoom: Math.max(mapRef.current.getZoom(), 12),
+      zoom: flyTo.zoom ?? Math.max(mapRef.current.getZoom(), 12),
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [flyTo?.nonce]);

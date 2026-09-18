@@ -5,7 +5,6 @@ import type {
   OperationalPointsCollection,
 } from "@carto-rinf/shared-types";
 import { getOrLoad } from "../cache/ttlCache.js";
-import { DEFAULT_COUNTRY_UOPID_PREFIX } from "../config.js";
 import { mapOperationalPointDetail } from "../mapping/operationalPointDetail.js";
 import { mapOperationalPoints } from "../mapping/operationalPoints.js";
 import { runSparqlSelect, SparqlQueryError } from "../sparql/client.js";
@@ -13,19 +12,19 @@ import {
   buildOperationalPointDetailQuery,
   buildOperationalPointsQuery,
 } from "../sparql/queries.js";
+import { resolveCountry } from "./resolveCountry.js";
 
 export function registerOperationalPointsRoute(app: FastifyInstance): void {
   app.get("/api/operational-points", async (request, reply) => {
-    const country =
-      (request.query as { country?: string }).country?.toUpperCase() ??
-      DEFAULT_COUNTRY_UOPID_PREFIX;
+    const country = resolveCountry(request, reply);
+    if (!country) return reply;
 
     try {
       const data = await getOrLoad<OperationalPointsCollection>(
-        `operational-points:${country}`,
+        `operational-points:${country.code}`,
         async () =>
           mapOperationalPoints(
-            await runSparqlSelect(buildOperationalPointsQuery(country)),
+            await runSparqlSelect(buildOperationalPointsQuery(country.code)),
           ),
       );
       const body: ApiEnvelope<OperationalPointsCollection> = {

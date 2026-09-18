@@ -1,6 +1,7 @@
 import cors from "@fastify/cors";
 import Fastify from "fastify";
 import { PORT } from "./config.js";
+import { registerCountriesRoute } from "./routes/countries.js";
 import { registerOperationalPointsRoute } from "./routes/operationalPoints.js";
 import { registerPrimaryLocationsRoute } from "./routes/primaryLocations.js";
 import { registerSectionsOfLineRoute } from "./routes/sectionsOfLine.js";
@@ -10,6 +11,7 @@ const app = Fastify({ logger: true });
 
 await app.register(cors, { origin: true });
 
+registerCountriesRoute(app);
 registerOperationalPointsRoute(app);
 registerSectionsOfLineRoute(app);
 registerTunnelsRoute(app);
