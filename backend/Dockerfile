@@ -2,7 +2,7 @@
 # This is an npm-workspaces monorepo — backend depends on the sibling
 # @carto-rinf/shared-types package, so the build needs the whole repo,
 # not just backend/.
-FROM node:22-slim AS build
+FROM node:26-slim AS build
 WORKDIR /app
 
 COPY package.json package-lock.json ./
@@ -17,7 +17,7 @@ RUN npm run build --workspace=@carto-rinf/shared-types
 RUN npm run build --workspace=backend
 RUN npm prune --omit=dev
 
-FROM node:22-slim
+FROM node:26-slim
 WORKDIR /app
 ENV NODE_ENV=production
 COPY --from=build /app/node_modules node_modules
