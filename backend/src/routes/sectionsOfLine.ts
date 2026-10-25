@@ -1,8 +1,9 @@
 import type { FastifyInstance } from "fastify";
 import type { ApiEnvelope, SectionOfLineCollection } from "@carto-rinf/shared-types";
-import { getOrLoad } from "../cache/ttlCache.js";
+import { datasetCache } from "../cache/ttlCache.js";
+import { replyWithError } from "../errors.js";
 import { mapSectionsOfLine } from "../mapping/sectionsOfLine.js";
-import { runSparqlSelect, SparqlQueryError } from "../sparql/client.js";
+import { runSparqlSelect } from "../sparql/client.js";
 import { buildSectionsOfLineQuery } from "../sparql/queries.js";
 import { resolveCountry } from "./resolveCountry.js";
 
@@ -12,7 +13,7 @@ export function registerSectionsOfLineRoute(app: FastifyInstance): void {
     if (!country) return reply;
 
     try {
-      const data = await getOrLoad<SectionOfLineCollection>(
+      const data = await datasetCache.getOrLoad<SectionOfLineCollection>(
         `sections-of-line:${country.code}`,
         async () =>
           mapSectionsOfLine(
@@ -25,16 +26,12 @@ export function registerSectionsOfLineRoute(app: FastifyInstance): void {
       };
       return body;
     } catch (err) {
-      request.log.error(err);
-      reply.code(err instanceof SparqlQueryError ? 502 : 500);
-      const body: ApiEnvelope<never> = {
-        status: "error",
-        message:
-          err instanceof SparqlQueryError
-            ? err.message
-            : "Unexpected server error while loading sections of line",
-      };
-      return body;
+      return replyWithError(
+        request,
+        reply,
+        err,
+        "Unexpected server error while loading sections of line",
+      );
     }
   });
 }

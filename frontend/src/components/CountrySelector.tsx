@@ -81,7 +81,9 @@ export function CountrySelector({ countries, value, onChange }: Props) {
         position: "absolute",
         top: 100,
         right: 12,
-        zIndex: 15,
+        // Above the map Toolbar stacked just below it, so the open country
+        // list is never covered by the tool buttons.
+        zIndex: 16,
         width: 220,
         fontFamily: "sans-serif",
       }}

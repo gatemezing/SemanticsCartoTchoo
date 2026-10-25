@@ -19,7 +19,9 @@ COPY frontend frontend
 RUN npm run build --workspace=@carto-rinf/shared-types
 RUN npm run build --workspace=frontend
 
-FROM nginx:alpine
+# Runs nginx as a non-root user (listening on 8080) instead of the stock
+# image's root master process.
+FROM nginxinc/nginx-unprivileged:alpine
 COPY frontend/nginx.conf /etc/nginx/conf.d/default.conf
 COPY --from=build /app/frontend/dist /usr/share/nginx/html
-EXPOSE 80
+EXPOSE 8080

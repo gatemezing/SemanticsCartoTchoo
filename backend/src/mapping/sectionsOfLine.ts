@@ -12,6 +12,7 @@ export function mapSectionsOfLine(
       type: "Feature",
       geometry: parseWktLineString(b.wkt.value),
       properties: {
+        rinfUri: b.sol.value,
         opStartUopid: b.opStartUopid.value,
         opEndUopid: b.opEndUopid.value,
         opStartName: literalFieldValue(b.opStartName, undefined),

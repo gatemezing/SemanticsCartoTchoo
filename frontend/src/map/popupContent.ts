@@ -8,6 +8,7 @@ import {
   fieldValueLabel,
   parseMaybeJson,
 } from "../components/fieldValueText";
+import { safeHref } from "../security/safeHref";
 
 function row(label: string, valueText: string, isMuted: boolean): HTMLElement {
   const el = document.createElement("div");
@@ -25,9 +26,13 @@ function row(label: string, valueText: string, isMuted: boolean): HTMLElement {
   return el;
 }
 
+/** Renders nothing for a non-http(s) URI — the values come from RINF and
+ *  Wikidata, and `a.href = "javascript:…"` would run on click. */
 function link(href: string, text: string): HTMLElement {
+  const safe = safeHref(href);
+  if (!safe) return document.createElement("span");
   const a = document.createElement("a");
-  a.href = href;
+  a.href = safe;
   a.target = "_blank";
   a.rel = "noopener noreferrer";
   a.textContent = text;
@@ -36,8 +41,27 @@ function link(href: string, text: string): HTMLElement {
   return a;
 }
 
+/** Opens the entity in the side panel's Describe view — the popup only
+ *  shows a summary, the panel every triple RINF has for it. */
+function exploreButton(onClick: () => void): HTMLElement {
+  const button = document.createElement("button");
+  button.type = "button";
+  button.textContent = "Explore in RINF graph →";
+  button.style.display = "block";
+  button.style.marginTop = "6px";
+  button.style.padding = "0";
+  button.style.border = "none";
+  button.style.background = "none";
+  button.style.color = "#1d4ed8";
+  button.style.cursor = "pointer";
+  button.style.font = "inherit";
+  button.addEventListener("click", onClick);
+  return button;
+}
+
 export function buildTunnelPopup(
   rawProperties: Record<string, unknown>,
+  onExplore: (iri: string) => void,
 ): HTMLElement {
   const props: TunnelProperties = {
     rinfUri: rawProperties.rinfUri as string,
@@ -64,6 +88,7 @@ export function buildTunnelPopup(
   );
 
   container.appendChild(link(props.rinfUri, "View RINF record →"));
+  container.appendChild(exploreButton(() => onExplore(props.rinfUri)));
   return container;
 }
 
@@ -109,6 +134,7 @@ function buildWikidataSection(wikidata: WikidataStationInfo): HTMLElement {
  *  to (an operational point can have zero, one, or several of these). */
 export function buildPrimaryLocationPopup(
   rawProperties: Record<string, unknown>,
+  onExplore: (iri: string) => void,
 ): HTMLElement {
   const props: PrimaryLocationProperties = {
     rinfUri: rawProperties.rinfUri as string,
@@ -141,6 +167,7 @@ export function buildPrimaryLocationPopup(
   container.appendChild(
     link(props.operationalPointRinfUri, "View operational point's RINF record →"),
   );
+  container.appendChild(exploreButton(() => onExplore(props.rinfUri)));
 
   if (props.wikidata) {
     container.appendChild(buildWikidataSection(props.wikidata));

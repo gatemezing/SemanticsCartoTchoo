@@ -1,4 +1,10 @@
-import { SPARQL_ENDPOINT, SPARQL_TIMEOUT_MS } from "../config.js";
+import {
+  SPARQL_ENDPOINT,
+  SPARQL_LOOKUP_MAX_CONCURRENT,
+  SPARQL_LOOKUP_MAX_QUEUED,
+  SPARQL_TIMEOUT_MS,
+} from "../config.js";
+import { ConcurrencyLimiter } from "./limiter.js";
 
 export interface SparqlTerm {
   type: "uri" | "literal" | "bnode";
@@ -23,6 +29,25 @@ export class SparqlQueryError extends Error {
     this.name = "SparqlQueryError";
   }
 }
+
+/** Upstream is saturated and the wait queue is full — a 503, not a 502:
+ *  the endpoint isn't failing, this server is shedding load. */
+export class UpstreamBusyError extends SparqlQueryError {
+  constructor() {
+    super("Too many RINF queries in progress — please retry in a moment");
+    this.name = "UpstreamBusyError";
+  }
+}
+
+/** For queries keyed by user input (entity detail, describe). Country
+ *  layers don't go through it: their keys come from the fixed registry
+ *  and in-flight deduplication already bounds them to one upstream query
+ *  per layer and country, whereas lookups are unbounded without this. */
+export const lookupLimiter = new ConcurrencyLimiter(
+  SPARQL_LOOKUP_MAX_CONCURRENT,
+  SPARQL_LOOKUP_MAX_QUEUED,
+  () => new UpstreamBusyError(),
+);
 
 /** Runs a SPARQL SELECT against the live RINF/ERA GraphDB endpoint. Callers
  *  should always go through the cache layer (see ../cache) rather than

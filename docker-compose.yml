@@ -5,16 +5,28 @@ services:
       dockerfile: backend/Dockerfile
     environment:
       - PORT=3001
+      # Only reachable through nginx on this network (no published port),
+      # so X-Forwarded-For can be trusted for per-client rate limiting.
+      - TRUST_PROXY=true
     expose:
       - "3001"
     restart: unless-stopped
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
 
   frontend:
     build:
       context: .
       dockerfile: frontend/Dockerfile
     ports:
-      - "8080:80"
+      - "8080:8080"
     depends_on:
       - backend
     restart: unless-stopped
+    read_only: true
+    # nginx-unprivileged keeps its pid file and proxy/client body buffers
+    # under /tmp.
+    tmpfs: [/tmp]
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]

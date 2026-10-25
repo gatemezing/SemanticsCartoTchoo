@@ -4,10 +4,12 @@ import type {
   OperationalPointDetail,
   OperationalPointsCollection,
 } from "@carto-rinf/shared-types";
-import { getOrLoad } from "../cache/ttlCache.js";
+import { datasetCache, lookupCache } from "../cache/ttlCache.js";
+import { LOOKUP_RATE_LIMIT_PER_MINUTE } from "../config.js";
+import { replyWithError } from "../errors.js";
 import { mapOperationalPointDetail } from "../mapping/operationalPointDetail.js";
 import { mapOperationalPoints } from "../mapping/operationalPoints.js";
-import { runSparqlSelect, SparqlQueryError } from "../sparql/client.js";
+import { lookupLimiter, runSparqlSelect } from "../sparql/client.js";
 import {
   buildOperationalPointDetailQuery,
   buildOperationalPointsQuery,
@@ -20,7 +22,7 @@ export function registerOperationalPointsRoute(app: FastifyInstance): void {
     if (!country) return reply;
 
     try {
-      const data = await getOrLoad<OperationalPointsCollection>(
+      const data = await datasetCache.getOrLoad<OperationalPointsCollection>(
         `operational-points:${country.code}`,
         async () =>
           mapOperationalPoints(
@@ -33,59 +35,56 @@ export function registerOperationalPointsRoute(app: FastifyInstance): void {
       };
       return body;
     } catch (err) {
-      request.log.error(err);
-      reply.code(err instanceof SparqlQueryError ? 502 : 500);
-      const body: ApiEnvelope<never> = {
-        status: "error",
-        message:
-          err instanceof SparqlQueryError
-            ? err.message
-            : "Unexpected server error while loading operational points",
-      };
-      return body;
+      return replyWithError(
+        request,
+        reply,
+        err,
+        "Unexpected server error while loading operational points",
+      );
     }
   });
 
-  app.get("/api/operational-points/:uopid", async (request, reply) => {
-    const { uopid } = request.params as { uopid: string };
+  app.get(
+    "/api/operational-points/:uopid",
+    { config: { rateLimit: { max: LOOKUP_RATE_LIMIT_PER_MINUTE } } },
+    async (request, reply) => {
+      const { uopid } = request.params as { uopid: string };
 
-    try {
-      const data = await getOrLoad<OperationalPointDetail | null>(
-        `operational-point-detail:${uopid}`,
-        async () => {
-          const results = await runSparqlSelect(
-            buildOperationalPointDetailQuery(uopid),
-          );
-          const binding = results.results.bindings[0];
-          return binding ? mapOperationalPointDetail(uopid, binding) : null;
-        },
-      );
+      try {
+        // Built (and so validated) before touching the cache, so a
+        // rejected uopid never becomes a cache key.
+        const query = buildOperationalPointDetailQuery(uopid);
+        const data = await lookupCache.getOrLoad<OperationalPointDetail | null>(
+          `operational-point-detail:${uopid}`,
+          async () => {
+            const results = await lookupLimiter.run(() => runSparqlSelect(query));
+            const binding = results.results.bindings[0];
+            return binding ? mapOperationalPointDetail(uopid, binding) : null;
+          },
+        );
 
-      if (!data) {
-        reply.code(404);
-        const body: ApiEnvelope<never> = {
-          status: "error",
-          message: `No operational point found in RINF with uopid "${uopid}"`,
+        if (!data) {
+          reply.code(404);
+          const body: ApiEnvelope<never> = {
+            status: "error",
+            message: `No operational point found in RINF with uopid "${uopid}"`,
+          };
+          return body;
+        }
+
+        const body: ApiEnvelope<OperationalPointDetail> = {
+          status: "ok",
+          data,
         };
         return body;
+      } catch (err) {
+        return replyWithError(
+          request,
+          reply,
+          err,
+          "Unexpected server error while loading the operational point",
+        );
       }
-
-      const body: ApiEnvelope<OperationalPointDetail> = {
-        status: "ok",
-        data,
-      };
-      return body;
-    } catch (err) {
-      request.log.error(err);
-      reply.code(err instanceof SparqlQueryError ? 502 : 500);
-      const body: ApiEnvelope<never> = {
-        status: "error",
-        message:
-          err instanceof SparqlQueryError
-            ? err.message
-            : "Unexpected server error while loading the operational point",
-      };
-      return body;
-    }
-  });
+    },
+  );
 }
