@@ -67,6 +67,9 @@ export type OperationalPointsCollection = GeoJSON.FeatureCollection<
 >;
 
 export interface SectionOfLineProperties {
+  /** The section's own RINF graph subject — what the Describe view
+   *  starts from when a section is clicked. */
+  rinfUri: string;
   opStartUopid: string;
   opEndUopid: string;
   opStartName: FieldValue<string>;
@@ -159,6 +162,57 @@ export interface OperationalPointDetail {
   partsCount: FieldValue<number>;
   /** era:primaryLocationCode values via era:primaryLocation, if any. */
   primaryLocationCodes: FieldValue<string[]>;
+}
+
+/** One RDF term as returned by the SPARQL JSON results format, plus a
+ *  human-readable label when the graph has one (skos:prefLabel or
+ *  rdfs:label, English or untagged). */
+export interface RdfTermDto {
+  type: "uri" | "literal" | "bnode";
+  value: string;
+  datatype?: string;
+  lang?: string;
+  label?: string;
+}
+
+/** One triple around the described resource: `node` is the object for
+ *  outgoing triples (`<iri> ?p ?node`) and the subject for incoming ones
+ *  (`?node ?p <iri>`). */
+export interface DescribedTriple {
+  predicate: RinfLink;
+  node: RdfTermDto;
+}
+
+/** Served by GET /api/describe — the raw graph neighbourhood of any IRI,
+ *  fetched live, so users can follow links beyond the fields the map's
+ *  own typed DTOs pick out. */
+export interface DescribeResult {
+  iri: string;
+  direction: "out" | "in";
+  triples: DescribedTriple[];
+  /** True when the endpoint had more triples than the server-side cap,
+   *  so the UI can say the list is incomplete rather than imply it isn't. */
+  truncated: boolean;
+}
+
+/** One published RINF dataset (the latest per infrastructure manager), as
+ *  listed by ERA's dataset explorer API — trimmed to non-personal fields
+ *  (the upstream response also carries submitter contact details, which
+ *  this app deliberately never forwards). */
+export interface RinfDataset {
+  id: string;
+  fileName: string;
+  /** e.g. "RDF_FULL", "XML_FULL", "RDF_PARTIAL_MERGE". */
+  type: string;
+  status: string;
+  sizeBytes: number | null;
+  /** ISO 8601 timestamp, or null when the explorer doesn't report one. */
+  publishedAt: string | null;
+  imCode: string;
+  imName: string;
+  /** RINF country code (same convention as CountryInfo.code, e.g. "EL"). */
+  countryCode: string;
+  countryName: string;
 }
 
 /** Every API response is wrapped so the frontend can distinguish a live

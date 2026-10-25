@@ -1,5 +1,6 @@
 import { countryAuthorityUri } from "../config.js";
 import { getCountry } from "../countries.js";
+import { BadRequestError } from "../errors.js";
 
 const ERA = "http://data.europa.eu/949/";
 const TIME_PREFIX = `PREFIX time: <http://www.w3.org/2006/time#>
@@ -20,10 +21,16 @@ function assertSafeCountryPrefix(prefix: string): void {
 }
 
 /** uopid comes straight from a URL path param (the detail endpoint), so
- *  this one really is a user-input boundary, not just defense in depth. */
-function assertSafeUopid(uopid: string): void {
-  if (!/^[A-Z0-9]{1,20}$/.test(uopid)) {
-    throw new Error(`Invalid uopid: "${uopid}"`);
+ *  this one really is a user-input boundary, not just defense in depth.
+ *  It's interpolated inside a "..." SPARQL string literal, which only `"`,
+ *  `\` and line breaks can escape — none of which this allows. The set is
+ *  what real uopids use, surveyed live (2026-10): beyond A-Z/0-9, 2,734
+ *  uopids (SE, NL, IE, DE, LT, NO, LU, AT, SI) contain lower-case and
+ *  non-ASCII letters (ö, Å, Ø, Æ…), spaces, `+` and `-`; the longest
+ *  was 12 characters. */
+export function assertSafeUopid(uopid: string): void {
+  if (!/^[\p{L}\p{N} +-]{1,20}$/u.test(uopid)) {
+    throw new BadRequestError(`Invalid uopid: "${uopid}"`);
   }
 }
 
@@ -293,4 +300,51 @@ SELECT ?op ?opName ?opNameNA ?opTypeURI ?opTypeLabel ?opTypeNA ?countryURI ?coun
     } GROUP BY ?op
   }
 }`;
+}
+
+/** The IRI comes straight from a query parameter (the Describe view lets
+ *  users follow any link), so it's interpolated as `<...>` only after
+ *  checking it's an absolute http(s) IRI with none of the characters the
+ *  SPARQL IRIREF production forbids — which is also exactly the set that
+ *  could close the `<...>` early and inject query text. */
+function assertSafeIri(iri: string): void {
+  if (
+    iri.length > 2000 ||
+    !/^https?:\/\/[^\s<>"{}|\\^`]+$/.test(iri)
+  ) {
+    throw new BadRequestError(`Invalid IRI: "${iri.slice(0, 200)}"`);
+  }
+}
+
+export const DESCRIBE_LIMIT = 1000;
+
+/** The raw neighbourhood of one IRI, outgoing (`<iri> ?p ?node`) or
+ *  incoming (`?node ?p <iri>`). Not SPARQL DESCRIBE itself: its result
+ *  shape is store-defined (GraphDB returns a CBD-ish graph without the
+ *  labels the UI needs), whereas a SELECT gives a predictable table.
+ *
+ *  The row cap is applied in an inner subquery *before* label lookup and
+ *  grouping, so a resource with a huge in-degree (a country, a SKOS
+ *  concept every track points at) costs one bounded scan, not a GROUP BY
+ *  over millions of rows. One extra row is fetched so the caller can tell
+ *  "exactly the limit" from "truncated". Labels are SAMPLEd because some
+ *  resources carry more than one label in the same language. */
+export function buildDescribeQuery(
+  iri: string,
+  direction: "out" | "in",
+  limit = DESCRIBE_LIMIT,
+): string {
+  assertSafeIri(iri);
+  const pattern =
+    direction === "out" ? `<${iri}> ?p ?node` : `?node ?p <${iri}>`;
+  return `PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+PREFIX skos: <http://www.w3.org/2004/02/skos/core#>
+SELECT ?p ?node (SAMPLE(?pl) AS ?pLabel) (SAMPLE(?nl) AS ?nodeLabel) WHERE {
+  { SELECT ?p ?node WHERE { ${pattern} } LIMIT ${limit + 1} }
+  OPTIONAL { ?p rdfs:label ?pl . FILTER(LANG(?pl) IN ("en", "")) }
+  OPTIONAL {
+    ?node skos:prefLabel|rdfs:label ?nl .
+    FILTER(isIRI(?node) && LANG(?nl) IN ("en", ""))
+  }
+} GROUP BY ?p ?node`;
 }

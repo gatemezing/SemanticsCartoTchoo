@@ -27,5 +27,9 @@ COPY --from=build /app/packages/shared-types/dist packages/shared-types/dist
 COPY --from=build /app/backend/package.json backend/package.json
 COPY --from=build /app/backend/dist backend/dist
 
+# The node image ships an unprivileged "node" user; the app only reads its
+# own files and never needs root.
+USER node
+
 EXPOSE 3001
 CMD ["node", "backend/dist/server.js"]

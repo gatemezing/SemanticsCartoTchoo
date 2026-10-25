@@ -47,3 +47,59 @@ export const WIKIDATA_TIMEOUT_MS = 60_000;
  *  query service rate-limits hard, so this is cached longer than RINF's
  *  own 6h default. */
 export const WIKIDATA_CACHE_TTL_MS = 24 * 60 * 60 * 1000;
+
+/** ERA's dataset explorer API — the same call the RINF portal's dataset
+ *  page makes; lists the latest published dataset per infrastructure
+ *  manager (verified live: 58 entries, 2026-10). */
+export const RINF_DATASETS_API =
+  process.env.RINF_DATASETS_API ??
+  "https://rinf.data.era.europa.eu/api/v1/dataset/published?latest=true&groupBy=im";
+
+export const DATASETS_TIMEOUT_MS = 30_000;
+
+/** Short compared to the SPARQL cache: this is a single cheap call, and
+ *  "what was published when" is the one thing users open this list to see
+ *  freshly. */
+export const DATASETS_CACHE_TTL_MS = 60 * 60 * 1000;
+
+function intFromEnv(name: string, fallback: number): number {
+  const raw = process.env[name];
+  const n = raw === undefined ? NaN : Number(raw);
+  return Number.isInteger(n) && n > 0 ? n : fallback;
+}
+
+/** Upstream concurrency for user-keyed lookups (see sparql/client.ts
+ *  lookupLimiter). A describe query takes ~0.1-0.3s, so 4 slots serve
+ *  well over 10 lookups/s; the queue absorbs bursts, beyond it → 503. */
+export const SPARQL_LOOKUP_MAX_CONCURRENT = intFromEnv("SPARQL_LOOKUP_MAX_CONCURRENT", 4);
+export const SPARQL_LOOKUP_MAX_QUEUED = intFromEnv("SPARQL_LOOKUP_MAX_QUEUED", 50);
+
+/** Per-client request budget per minute across the API, and a tighter one
+ *  for the routes whose cache keys are user-chosen (each miss is a live
+ *  upstream query). Generous for a person clicking around a map; a flood
+ *  gets 429s. */
+export const RATE_LIMIT_PER_MINUTE = intFromEnv("RATE_LIMIT_PER_MINUTE", 300);
+export const LOOKUP_RATE_LIMIT_PER_MINUTE = intFromEnv("LOOKUP_RATE_LIMIT_PER_MINUTE", 60);
+
+/** Which origins may call the API cross-origin. Unset (the default) means
+ *  no CORS headers at all — same-origin deployments (Docker/nginx, the
+ *  Vite dev proxy) don't need them. A static frontend hosted elsewhere
+ *  (GitHub Pages) lists its origin here, e.g.
+ *  CORS_ORIGINS=https://user.github.io */
+export const CORS_ORIGINS = (process.env.CORS_ORIGINS ?? "")
+  .split(",")
+  .map((o) => o.trim())
+  .filter(Boolean);
+
+/** Fastify's `trustProxy`: whether to take the client IP from
+ *  X-Forwarded-For. Needed behind nginx, or every request looks like it
+ *  comes from the proxy (one shared rate-limit bucket, useless logs) —
+ *  but only safe when clients can't reach the backend directly, since
+ *  the header is otherwise client-controlled. "true", or a
+ *  comma-separated list of proxy IPs/CIDRs; unset = don't trust. */
+export const TRUST_PROXY: boolean | string[] = (() => {
+  const raw = process.env.TRUST_PROXY?.trim();
+  if (!raw || raw === "false") return false;
+  if (raw === "true") return true;
+  return raw.split(",").map((s) => s.trim());
+})();

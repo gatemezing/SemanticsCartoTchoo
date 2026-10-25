@@ -3,9 +3,10 @@ import type {
   ApiEnvelope,
   PrimaryLocationsCollection,
 } from "@carto-rinf/shared-types";
-import { getOrLoad } from "../cache/ttlCache.js";
+import { datasetCache } from "../cache/ttlCache.js";
+import { replyWithError } from "../errors.js";
 import { mapPrimaryLocations } from "../mapping/primaryLocations.js";
-import { runSparqlSelect, SparqlQueryError } from "../sparql/client.js";
+import { runSparqlSelect } from "../sparql/client.js";
 import { buildPrimaryLocationsQuery } from "../sparql/queries.js";
 import { getWikidataStationsByPlc } from "../wikidata/service.js";
 import { resolveCountry } from "./resolveCountry.js";
@@ -16,7 +17,7 @@ export function registerPrimaryLocationsRoute(app: FastifyInstance): void {
     if (!country) return reply;
 
     try {
-      const data = await getOrLoad<PrimaryLocationsCollection>(
+      const data = await datasetCache.getOrLoad<PrimaryLocationsCollection>(
         `primary-locations:${country.code}`,
         async () => {
           // Wikidata enrichment has its own, longer-lived cache (see
@@ -35,16 +36,12 @@ export function registerPrimaryLocationsRoute(app: FastifyInstance): void {
       };
       return body;
     } catch (err) {
-      request.log.error(err);
-      reply.code(err instanceof SparqlQueryError ? 502 : 500);
-      const body: ApiEnvelope<never> = {
-        status: "error",
-        message:
-          err instanceof SparqlQueryError
-            ? err.message
-            : "Unexpected server error while loading primary locations",
-      };
-      return body;
+      return replyWithError(
+        request,
+        reply,
+        err,
+        "Unexpected server error while loading primary locations",
+      );
     }
   });
 }

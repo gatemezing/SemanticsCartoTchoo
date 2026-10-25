@@ -1,9 +1,11 @@
 import type {
   ApiEnvelope,
   CountryInfo,
+  DescribeResult,
   OperationalPointDetail,
   OperationalPointsCollection,
   PrimaryLocationsCollection,
+  RinfDataset,
   SectionOfLineCollection,
   TunnelsCollection,
 } from "@carto-rinf/shared-types";
@@ -67,4 +69,17 @@ export function fetchOperationalPointDetail(
   uopid: string,
 ): Promise<OperationalPointDetail> {
   return getEnvelope(`/api/operational-points/${encodeURIComponent(uopid)}`);
+}
+
+export function fetchDescribe(
+  iri: string,
+  direction: "out" | "in",
+): Promise<DescribeResult> {
+  return getEnvelope(
+    `/api/describe?iri=${encodeURIComponent(iri)}&direction=${direction}`,
+  );
+}
+
+export function fetchDatasets(): Promise<RinfDataset[]> {
+  return getEnvelope("/api/datasets");
 }

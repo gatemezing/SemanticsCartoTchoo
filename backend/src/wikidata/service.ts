@@ -1,5 +1,5 @@
 import type { WikidataStationInfo } from "@carto-rinf/shared-types";
-import { getOrLoad } from "../cache/ttlCache.js";
+import { datasetCache } from "../cache/ttlCache.js";
 import { WIKIDATA_CACHE_TTL_MS } from "../config.js";
 import type { CountryInfo } from "../countries.js";
 import { runWikidataSparqlSelect, WikidataQueryError } from "./client.js";
@@ -13,7 +13,7 @@ export async function getWikidataStationsByPlc(
   country: CountryInfo,
 ): Promise<Map<string, WikidataStationInfo>> {
   try {
-    return await getOrLoad(
+    return await datasetCache.getOrLoad(
       `wikidata-stations-by-plc:${country.code}`,
       async () =>
         mapWikidataStationsByPlc(
