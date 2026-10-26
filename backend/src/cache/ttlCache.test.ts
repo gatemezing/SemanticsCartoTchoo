@@ -33,8 +33,8 @@ test("flooding user-keyed lookups never evicts country data", async () => {
 
 test("the dataset cache fits every country's keys", async () => {
   const { COUNTRIES } = await import("../countries.js");
-  const perCountryKeys = 5; // op, sol, tunnels, primary locations, wikidata
-  const cache = new TtlCache({ max: 200 });
+  const { DATASET_CACHE_KEYS_PER_COUNTRY: perCountryKeys } = await import("./ttlCache.js");
+  const cache = new TtlCache({ max: 500 });
   for (const c of COUNTRIES) {
     for (let k = 0; k < perCountryKeys; k++) await cache.getOrLoad(`${k}:${c.code}`, async () => k);
   }

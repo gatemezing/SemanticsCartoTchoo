@@ -10,8 +10,12 @@ import {
 import { registerCountriesRoute } from "./routes/countries.js";
 import { registerDatasetsRoute } from "./routes/datasets.js";
 import { registerDescribeRoute } from "./routes/describe.js";
+import { registerInfrastructureRoute } from "./routes/infrastructure.js";
+import { registerLinesRoutes } from "./routes/lines.js";
 import { registerOperationalPointsRoute } from "./routes/operationalPoints.js";
 import { registerPrimaryLocationsRoute } from "./routes/primaryLocations.js";
+import { registerSectionDetailRoute } from "./routes/sectionDetail.js";
+import { registerSectionParametersRoute } from "./routes/sectionParameters.js";
 import { registerSectionsOfLineRoute } from "./routes/sectionsOfLine.js";
 import { registerTunnelsRoute } from "./routes/tunnels.js";
 
@@ -71,6 +75,10 @@ export async function buildApp({
   registerPrimaryLocationsRoute(app);
   registerDescribeRoute(app);
   registerDatasetsRoute(app);
+  registerInfrastructureRoute(app);
+  registerSectionParametersRoute(app);
+  registerSectionDetailRoute(app);
+  registerLinesRoutes(app);
 
   app.get("/api/health", { config: { rateLimit: false } }, async () => ({
     status: "ok",

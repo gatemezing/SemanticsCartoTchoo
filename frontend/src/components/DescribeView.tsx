@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { type CSSProperties, useEffect, useState } from "react";
 import type { DescribedTriple, RdfTermDto } from "@carto-rinf/shared-types";
-import { fetchDescribe } from "../api/client";
+import { describeTurtleUrl, fetchDescribe } from "../api/client";
 import { compactIri } from "../rdf/prefixes";
 import { safeHref } from "../security/safeHref";
 
@@ -41,7 +41,7 @@ const linkButton: CSSProperties = {
   border: "none",
   background: "none",
   padding: 0,
-  color: "#1d4ed8",
+  color: "var(--link)",
   cursor: "pointer",
   textAlign: "left",
   font: "inherit",
@@ -65,7 +65,7 @@ function Node({ node, onNavigate }: { node: RdfTermDto; onNavigate: (iri: string
           target="_blank"
           rel="noopener noreferrer"
           title="Open this IRI in a new tab"
-          style={{ color: "#6b7280", textDecoration: "none", fontSize: 11 }}
+          style={{ color: "var(--text-muted)", textDecoration: "none", fontSize: 11 }}
         >
           ↗
         </a>
@@ -73,7 +73,7 @@ function Node({ node, onNavigate }: { node: RdfTermDto; onNavigate: (iri: string
     );
   }
   if (node.type === "bnode") {
-    return <span style={{ color: "#6b7280" }}>_:{node.value}</span>;
+    return <span style={{ color: "var(--text-muted)" }}>_:{node.value}</span>;
   }
   const suffix = node.lang
     ? `@${node.lang}`
@@ -84,7 +84,7 @@ function Node({ node, onNavigate }: { node: RdfTermDto; onNavigate: (iri: string
     <span style={{ wordBreak: "break-word" }}>
       {node.value}
       {suffix && (
-        <span style={{ color: "#9ca3af", fontSize: 11, marginLeft: 4 }}>{suffix}</span>
+        <span style={{ color: "var(--text-subtle)", fontSize: 11, marginLeft: 4 }}>{suffix}</span>
       )}
     </span>
   );
@@ -130,7 +130,7 @@ export function DescribeView({ iri, onLabel }: Props) {
           ← Back ({trail.length - 1})
         </button>
       )}
-      <div style={{ color: "#374151", fontSize: 12, wordBreak: "break-all", marginBottom: 8 }}>
+      <div style={{ color: "var(--text)", fontSize: 12, wordBreak: "break-all", marginBottom: 8 }}>
         {safeHref(current) ? (
           <a href={safeHref(current)} target="_blank" rel="noopener noreferrer">
             {compactIri(current)}
@@ -140,7 +140,7 @@ export function DescribeView({ iri, onLabel }: Props) {
         )}
       </div>
 
-      <div role="tablist" style={{ display: "flex", gap: 4, marginBottom: 8 }}>
+      <div role="tablist" style={{ display: "flex", gap: 4, marginBottom: 8, alignItems: "center" }}>
         {(["out", "in"] as const).map((d) => (
           <button
             key={d}
@@ -151,25 +151,35 @@ export function DescribeView({ iri, onLabel }: Props) {
               padding: "3px 8px",
               fontSize: 11,
               borderRadius: 4,
-              border: "1px solid #d1d5db",
-              background: direction === d ? "#1f2937" : "white",
-              color: direction === d ? "white" : "#1f2937",
+              border: "1px solid var(--border)",
+              background: direction === d ? "var(--chip-active-bg)" : "var(--surface)",
+              color: direction === d ? "var(--chip-active-text)" : "var(--text)",
               cursor: "pointer",
             }}
           >
             {d === "out" ? "Outgoing" : "Incoming"}
           </button>
         ))}
+        {safeHref(current) && (
+          <a
+            href={describeTurtleUrl(current)}
+            download
+            title="The resource's outgoing triples as an RDF (Turtle) file"
+            style={{ marginLeft: "auto", fontSize: 11 }}
+          >
+            Download Turtle
+          </a>
+        )}
       </div>
 
       {isLoading && <div>Loading from RINF…</div>}
       {error && (
-        <div style={{ color: "#b91c1c" }}>
+        <div style={{ color: "var(--danger-text)" }}>
           Couldn't describe this resource: {String((error as Error).message)}
         </div>
       )}
       {data && data.triples.length === 0 && (
-        <div style={{ color: "#9ca3af", fontStyle: "italic" }}>
+        <div style={{ color: "var(--text-subtle)", fontStyle: "italic" }}>
           No {direction === "out" ? "outgoing" : "incoming"} triples in RINF.
         </div>
       )}
@@ -178,7 +188,7 @@ export function DescribeView({ iri, onLabel }: Props) {
           <div key={predicate.uri} style={{ marginBottom: 8 }}>
             <div
               title={predicate.uri}
-              style={{ color: "#6b7280", fontSize: 11, textTransform: "uppercase", letterSpacing: 0.3 }}
+              style={{ color: "var(--text-muted)", fontSize: 11, textTransform: "uppercase", letterSpacing: 0.3 }}
             >
               {direction === "in" && "← "}
               {predicate.label ?? compactIri(predicate.uri)}
@@ -191,7 +201,7 @@ export function DescribeView({ iri, onLabel }: Props) {
           </div>
         ))}
       {data?.truncated && (
-        <div style={{ color: "#92400e", fontSize: 12 }}>
+        <div style={{ color: "var(--warning-strong)", fontSize: 12 }}>
           Showing the first {data.triples.length} triples only.
         </div>
       )}

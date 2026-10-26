@@ -7,14 +7,14 @@ export function LoadingOverlay() {
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        background: "rgba(255,255,255,0.7)",
+        background: "var(--surface-translucent)",
         zIndex: 10,
         fontFamily: "sans-serif",
       }}
     >
       <div style={{ textAlign: "center" }}>
         <div>Loading railway infrastructure from RINF…</div>
-        <div style={{ fontSize: 12, color: "#6b7280", marginTop: 4 }}>
+        <div style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 4 }}>
           First load can take up to a minute — the RINF endpoint is queried
           live and then cached.
         </div>

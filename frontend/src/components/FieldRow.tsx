@@ -10,10 +10,10 @@ interface Props {
 export function FieldRow({ label, value, muted = false }: Props) {
   return (
     <div style={{ marginBottom: 8, fontSize: 13 }}>
-      <div style={{ color: "#6b7280", fontSize: 11, textTransform: "uppercase", letterSpacing: 0.3 }}>
+      <div style={{ color: "var(--text-muted)", fontSize: 11, textTransform: "uppercase", letterSpacing: 0.3 }}>
         {label}
       </div>
-      <div style={muted ? { color: "#9ca3af", fontStyle: "italic" } : undefined}>
+      <div style={muted ? { color: "var(--text-subtle)", fontStyle: "italic" } : undefined}>
         {value}
       </div>
     </div>

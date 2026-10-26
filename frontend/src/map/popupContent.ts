@@ -1,4 +1,7 @@
 import type {
+  FieldValue,
+  InfrastructureKind,
+  RinfLink,
   PrimaryLocationProperties,
   TunnelProperties,
   WikidataStationInfo,
@@ -7,6 +10,7 @@ import {
   describeFieldValue,
   fieldValueLabel,
   parseMaybeJson,
+  linkFieldValueLabel,
 } from "../components/fieldValueText";
 import { safeHref } from "../security/safeHref";
 
@@ -19,7 +23,7 @@ function row(label: string, valueText: string, isMuted: boolean): HTMLElement {
   const span = document.createElement("span");
   span.textContent = valueText;
   if (isMuted) {
-    span.style.color = "#9ca3af";
+    span.style.color = "var(--text-subtle)";
     span.style.fontStyle = "italic";
   }
   el.appendChild(span);
@@ -52,7 +56,7 @@ function exploreButton(onClick: () => void): HTMLElement {
   button.style.padding = "0";
   button.style.border = "none";
   button.style.background = "none";
-  button.style.color = "#1d4ed8";
+  button.style.color = "var(--link)";
   button.style.cursor = "pointer";
   button.style.font = "inherit";
   button.addEventListener("click", onClick);
@@ -101,11 +105,11 @@ function buildWikidataSection(wikidata: WikidataStationInfo): HTMLElement {
   const section = document.createElement("div");
   section.style.marginTop = "8px";
   section.style.paddingTop = "8px";
-  section.style.borderTop = "1px solid #e5e7eb";
+  section.style.borderTop = "1px solid var(--border-subtle)";
 
   const header = document.createElement("div");
   header.style.fontWeight = "700";
-  header.style.color = "#1a5fb4";
+  header.style.color = "var(--wikidata)";
   header.style.marginBottom = "4px";
   header.textContent = `From Wikidata${wikidata.label ? `: ${wikidata.label}` : ""}`;
   section.appendChild(header);
@@ -173,5 +177,39 @@ export function buildPrimaryLocationPopup(
     container.appendChild(buildWikidataSection(props.wikidata));
   }
 
+  return container;
+}
+
+const INFRA_TITLES: Record<InfrastructureKind, string> = {
+  "level-crossings": "Level crossing",
+  bridges: "Bridge",
+  signals: "Signal",
+  switches: "Switch",
+};
+
+export function buildInfrastructurePopup(
+  rawProperties: Record<string, unknown>,
+  onExplore: (iri: string) => void,
+): HTMLElement {
+  const kind = rawProperties.kind as InfrastructureKind;
+  const rinfUri = rawProperties.rinfUri as string;
+  const label = parseMaybeJson<FieldValue<string>>(rawProperties.label);
+
+  const container = document.createElement("div");
+  container.style.fontSize = "13px";
+  container.style.minWidth = "200px";
+
+  const title = document.createElement("div");
+  title.style.fontWeight = "700";
+  title.style.marginBottom = "6px";
+  title.textContent = `${INFRA_TITLES[kind] ?? "Infrastructure"}: ${fieldValueLabel(label)}`;
+  container.appendChild(title);
+
+  if (rawProperties.subtype !== undefined) {
+    const subtype = parseMaybeJson<FieldValue<RinfLink>>(rawProperties.subtype);
+    container.appendChild(row("Type", linkFieldValueLabel(subtype), subtype.status !== "value"));
+  }
+  container.appendChild(link(rinfUri, "View RINF record →"));
+  container.appendChild(exploreButton(() => onExplore(rinfUri)));
   return container;
 }

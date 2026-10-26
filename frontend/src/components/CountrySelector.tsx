@@ -6,6 +6,8 @@ interface Props {
   countries: CountryInfo[];
   value: string;
   onChange: (code: string) => void;
+  /** Extra right offset (px) so a side panel never covers it. */
+  rightInset?: number;
 }
 
 /** A native <select> doesn't scale to 28 countries — finding one means
@@ -13,7 +15,7 @@ interface Props {
  *  click to open, type to filter, arrow keys + Enter to pick. Flags (built
  *  from the ISO2 code, no image assets) make the closed/list rows scannable
  *  at a glance rather than reading full country names. */
-export function CountrySelector({ countries, value, onChange }: Props) {
+export function CountrySelector({ countries, value, onChange, rightInset = 0 }: Props) {
   const sorted = [...countries].sort((a, b) => a.label.localeCompare(b.label));
   const current = sorted.find((c) => c.code === value);
 
@@ -80,7 +82,7 @@ export function CountrySelector({ countries, value, onChange }: Props) {
         // Below MapLibre's own zoom control, which anchors top-right too.
         position: "absolute",
         top: 100,
-        right: 12,
+        right: 12 + rightInset,
         // Above the map Toolbar stacked just below it, so the open country
         // list is never covered by the tool buttons.
         zIndex: 16,
@@ -104,9 +106,9 @@ export function CountrySelector({ countries, value, onChange }: Props) {
             boxSizing: "border-box",
             padding: "8px 10px",
             borderRadius: 6,
-            border: "1px solid #2563eb",
+            border: "1px solid var(--accent)",
             fontSize: 13,
-            boxShadow: "0 1px 4px rgba(0,0,0,0.15)",
+            boxShadow: "var(--shadow-sm)",
           }}
         />
       ) : (
@@ -118,11 +120,11 @@ export function CountrySelector({ countries, value, onChange }: Props) {
             textAlign: "left",
             padding: "8px 10px",
             borderRadius: 6,
-            border: "1px solid #d1d5db",
+            border: "1px solid var(--border)",
             fontSize: 13,
-            background: "white",
+            background: "var(--surface)",
             cursor: "pointer",
-            boxShadow: "0 1px 4px rgba(0,0,0,0.15)",
+            boxShadow: "var(--shadow-sm)",
             display: "flex",
             alignItems: "center",
             justifyContent: "space-between",
@@ -133,7 +135,7 @@ export function CountrySelector({ countries, value, onChange }: Props) {
               ? `${countryFlagEmoji(current.code)} ${current.label}`
               : "Select a country"}
           </span>
-          <span style={{ color: "#9ca3af" }}>▾</span>
+          <span style={{ color: "var(--text-subtle)" }}>▾</span>
         </button>
       )}
 
@@ -143,13 +145,13 @@ export function CountrySelector({ countries, value, onChange }: Props) {
             marginTop: 4,
             maxHeight: 260,
             overflowY: "auto",
-            background: "white",
+            background: "var(--surface)",
             borderRadius: 6,
-            boxShadow: "0 2px 8px rgba(0,0,0,0.2)",
+            boxShadow: "var(--shadow-md)",
           }}
         >
           {filtered.length === 0 && (
-            <div style={{ padding: "8px 10px", fontSize: 12, color: "#6b7280" }}>
+            <div style={{ padding: "8px 10px", fontSize: 12, color: "var(--text-muted)" }}>
               No country matches "{query}"
             </div>
           )}
@@ -164,13 +166,13 @@ export function CountrySelector({ countries, value, onChange }: Props) {
                 textAlign: "left",
                 padding: "6px 10px",
                 border: "none",
-                borderBottom: "1px solid #f3f4f6",
+                borderBottom: "1px solid var(--divider)",
                 background:
                   i === highlighted
-                    ? "#eff6ff"
+                    ? "var(--accent-soft)"
                     : c.code === value
-                      ? "#f9fafb"
-                      : "white",
+                      ? "var(--surface-sunken)"
+                      : "var(--surface)",
                 fontWeight: c.code === value ? 700 : 400,
                 fontSize: 13,
                 cursor: "pointer",

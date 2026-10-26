@@ -49,12 +49,13 @@ export const lookupLimiter = new ConcurrencyLimiter(
   () => new UpstreamBusyError(),
 );
 
-/** Runs a SPARQL SELECT against the live RINF/ERA GraphDB endpoint. Callers
- *  should always go through the cache layer (see ../cache) rather than
- *  calling this directly from a route handler. */
-export async function runSparqlSelect(
+/** POSTs a query to the RINF endpoint with the given Accept type, mapping
+ *  transport failures, HTTP errors and the timeout to SparqlQueryError. */
+async function postQuery<T>(
   query: string,
-): Promise<SparqlJsonResults> {
+  accept: string,
+  read: (response: Response) => Promise<T>,
+): Promise<T> {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), SPARQL_TIMEOUT_MS);
 
@@ -62,7 +63,7 @@ export async function runSparqlSelect(
     const response = await fetch(SPARQL_ENDPOINT, {
       method: "POST",
       headers: {
-        Accept: "application/sparql-results+json",
+        Accept: accept,
         "Content-Type": "application/x-www-form-urlencoded",
       },
       body: new URLSearchParams({ query }),
@@ -75,7 +76,7 @@ export async function runSparqlSelect(
       );
     }
 
-    return (await response.json()) as SparqlJsonResults;
+    return await read(response);
   } catch (err) {
     if (err instanceof SparqlQueryError) throw err;
     if (err instanceof Error && err.name === "AbortError") {
@@ -91,4 +92,20 @@ export async function runSparqlSelect(
   } finally {
     clearTimeout(timeout);
   }
+}
+
+/** Runs a SPARQL SELECT against the live RINF/ERA GraphDB endpoint. Callers
+ *  should always go through the cache layer (see ../cache) rather than
+ *  calling this directly from a route handler. */
+export function runSparqlSelect(query: string): Promise<SparqlJsonResults> {
+  return postQuery(
+    query,
+    "application/sparql-results+json",
+    async (response) => (await response.json()) as SparqlJsonResults,
+  );
+}
+
+/** Runs a SPARQL CONSTRUCT and returns the graph as Turtle text. */
+export function runSparqlConstructTurtle(query: string): Promise<string> {
+  return postQuery(query, "text/turtle", (response) => response.text());
 }

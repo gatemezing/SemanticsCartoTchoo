@@ -4,3 +4,7 @@ dist/
 *.log
 .env
 frontend/public/THIRD_PARTY_LICENSES.txt
+
+# Playwright
+frontend/test-results/
+frontend/playwright-report/

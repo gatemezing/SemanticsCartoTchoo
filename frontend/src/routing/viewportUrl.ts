@@ -11,7 +11,17 @@
  *    a tunnel, any resource reached from the Describe view). Ignored when
  *    the path already names an operational point.
  *  - `hide=<layer>,<layer>`: map layers switched off (see LAYER_IDS).
- *  - `orm=1`: the OpenRailwayMap overlay is on. */
+ *  - `orm=1`: the OpenRailwayMap overlay is on.
+ *  - `show=<kind>,<kind>`: opt-in infrastructure layers (level crossings,
+ *    bridges, signals, switches) that are on.
+ *  - `col=<parameter>`: sections of line coloured by a track parameter.
+ *  - `lp=<IRI>`: the line profile is open on this national line. */
+import {
+  INFRASTRUCTURE_KINDS,
+  type InfrastructureKind,
+  TRACK_PARAMETERS,
+  type TrackParameterId,
+} from "@carto-rinf/shared-types";
 import { safeHref } from "../security/safeHref";
 
 export interface ViewportState {
@@ -49,6 +59,9 @@ export interface RouteState {
   selectedIri: string | null;
   hiddenLayers: LayerId[];
   openRailwayMap: boolean;
+  shownInfrastructure: InfrastructureKind[];
+  colourBy: TrackParameterId | null;
+  lineProfile: string | null;
 }
 
 export const DEFAULT_VIEWPORT: ViewportState = { lat: 46.6, lon: 2.5, zoom: 5 };
@@ -57,10 +70,17 @@ export const DEFAULT_COUNTRY = "FR";
 const VIEWPORT_SEGMENT = /^(-?\d+\.?\d*),(-?\d+\.?\d*),(-?\d+\.?\d*)$/;
 const COUNTRY_SEGMENT = /^[A-Z]{2}$/;
 
-function parseQuery(search: string): Pick<
+type QueryState = Pick<
   RouteState,
-  "selectedIri" | "hiddenLayers" | "openRailwayMap"
-> {
+  | "selectedIri"
+  | "hiddenLayers"
+  | "openRailwayMap"
+  | "shownInfrastructure"
+  | "colourBy"
+  | "lineProfile"
+>;
+
+function parseQuery(search: string): QueryState {
   const params = new URLSearchParams(search);
   const hide = params.get("hide");
   return {
@@ -72,6 +92,13 @@ function parseQuery(search: string): Pick<
       ? LAYER_IDS.filter((id) => hide.split(",").includes(id))
       : [],
     openRailwayMap: params.get("orm") === "1",
+    shownInfrastructure: INFRASTRUCTURE_KINDS.filter((k) =>
+      (params.get("show") ?? "").split(",").includes(k),
+    ),
+    colourBy: (TRACK_PARAMETERS as readonly string[]).includes(params.get("col") ?? "")
+      ? (params.get("col") as TrackParameterId)
+      : null,
+    lineProfile: safeHref(params.get("lp")) ?? null,
   };
 }
 
@@ -119,6 +146,9 @@ export interface FormatRouteOptions {
   selectedIri?: string | null;
   hiddenLayers?: readonly LayerId[];
   openRailwayMap?: boolean;
+  shownInfrastructure?: readonly InfrastructureKind[];
+  colourBy?: TrackParameterId | null;
+  lineProfile?: string | null;
 }
 
 export function formatRoute(
@@ -140,6 +170,14 @@ export function formatRoute(
     );
   }
   if (options.openRailwayMap) params.set("orm", "1");
+  if (options.shownInfrastructure && options.shownInfrastructure.length > 0) {
+    params.set(
+      "show",
+      INFRASTRUCTURE_KINDS.filter((k) => options.shownInfrastructure!.includes(k)).join(","),
+    );
+  }
+  if (options.colourBy) params.set("col", options.colourBy);
+  if (options.lineProfile) params.set("lp", options.lineProfile);
   const query = params.toString();
   return query ? `${path}?${query}` : path;
 }

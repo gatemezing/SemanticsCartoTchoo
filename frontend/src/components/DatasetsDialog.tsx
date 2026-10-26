@@ -15,7 +15,7 @@ function formatSize(bytes: number | null): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-const cell = { padding: "4px 8px", borderBottom: "1px solid #f3f4f6", textAlign: "left" as const };
+const cell = { padding: "4px 8px", borderBottom: "1px solid var(--divider)", textAlign: "left" as const };
 
 /** What RINF the map is actually reading: the latest published dataset of
  *  each infrastructure manager, per ERA's dataset explorer. The map queries
@@ -31,7 +31,7 @@ export function DatasetsDialog({ country, countryLabel, onClose }: Props) {
 
   return (
     <Modal title="RINF datasets" onClose={onClose}>
-      <p style={{ marginTop: 0, color: "#4b5563" }}>
+      <p style={{ marginTop: 0, color: "var(--text-secondary)" }}>
         The latest dataset each infrastructure manager published to RINF, as
         listed by{" "}
         <a href="https://rinf.data.era.europa.eu/" target="_blank" rel="noopener noreferrer">
@@ -51,12 +51,12 @@ export function DatasetsDialog({ country, countryLabel, onClose }: Props) {
 
       {isLoading && <div>Loading from ERA…</div>}
       {error && (
-        <div style={{ color: "#b91c1c" }}>
+        <div style={{ color: "var(--danger-text)" }}>
           Couldn't load the dataset list: {String((error as Error).message)}
         </div>
       )}
       {data && rows.length === 0 && (
-        <div style={{ color: "#9ca3af", fontStyle: "italic" }}>
+        <div style={{ color: "var(--text-subtle)", fontStyle: "italic" }}>
           No dataset listed for {countryLabel}.
         </div>
       )}
@@ -64,7 +64,7 @@ export function DatasetsDialog({ country, countryLabel, onClose }: Props) {
         <div style={{ overflowX: "auto" }}>
           <table style={{ borderCollapse: "collapse", width: "100%", fontSize: 12 }}>
             <thead>
-              <tr style={{ color: "#6b7280" }}>
+              <tr style={{ color: "var(--text-muted)" }}>
                 {!onlyCountry && <th style={cell}>Country</th>}
                 <th style={cell}>Infrastructure manager</th>
                 <th style={cell}>Published</th>
@@ -79,7 +79,7 @@ export function DatasetsDialog({ country, countryLabel, onClose }: Props) {
                   {!onlyCountry && <td style={cell}>{d.countryName}</td>}
                   <td style={cell}>
                     {d.imName}{" "}
-                    <span style={{ color: "#9ca3af" }}>({d.imCode})</span>
+                    <span style={{ color: "var(--text-subtle)" }}>({d.imCode})</span>
                   </td>
                   <td style={{ ...cell, whiteSpace: "nowrap" }}>
                     {d.publishedAt ? new Date(d.publishedAt).toLocaleDateString() : "—"}
@@ -88,7 +88,7 @@ export function DatasetsDialog({ country, countryLabel, onClose }: Props) {
                   <td style={{ ...cell, textAlign: "right", whiteSpace: "nowrap" }}>
                     {formatSize(d.sizeBytes)}
                   </td>
-                  <td style={{ ...cell, wordBreak: "break-all", color: "#4b5563" }}>{d.fileName}</td>
+                  <td style={{ ...cell, wordBreak: "break-all", color: "var(--text-secondary)" }}>{d.fileName}</td>
                 </tr>
               ))}
             </tbody>

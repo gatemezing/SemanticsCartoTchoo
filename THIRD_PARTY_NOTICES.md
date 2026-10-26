@@ -68,6 +68,7 @@ what is deployed.
 | [Vite](https://github.com/vitejs/vite), @vitejs/plugin-react | MIT |
 | [lightningcss](https://github.com/parcel-bundler/lightningcss) (CSS minifier, a Vite dependency) | MPL-2.0, used unmodified at build time |
 | [tsx](https://github.com/privatenumber/tsx) (TypeScript runner for dev and tests) | MIT |
+| [Playwright Test](https://github.com/microsoft/playwright) (end-to-end tests) | Apache-2.0 |
 | @types/node, @types/react, @types/react-dom, @types/geojson | MIT |
 
 ## Acknowledgements

@@ -15,16 +15,16 @@ export function ErrorBanner({ message, onRetry }: Props) {
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        background: "#fef2f2",
+        background: "var(--danger-bg)",
         zIndex: 10,
         fontFamily: "sans-serif",
       }}
     >
       <div style={{ textAlign: "center", maxWidth: 420 }}>
-        <div style={{ color: "#b91c1c", fontWeight: 700, marginBottom: 6 }}>
+        <div style={{ color: "var(--danger-text)", fontWeight: 700, marginBottom: 6 }}>
           Couldn't reach the RINF data endpoint
         </div>
-        <div style={{ color: "#7f1d1d", fontSize: 13, marginBottom: 12 }}>
+        <div style={{ color: "var(--danger-strong)", fontSize: 13, marginBottom: 12 }}>
           {message}
         </div>
         <button
