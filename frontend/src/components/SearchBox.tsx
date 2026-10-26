@@ -64,7 +64,7 @@ export function SearchBox({ operationalPoints, onSelect }: Props) {
             top: "50%",
             transform: "translateY(-50%)",
             fontSize: 14,
-            color: "#9ca3af",
+            color: "var(--text-subtle)",
             pointerEvents: "none",
           }}
         >
@@ -83,10 +83,10 @@ export function SearchBox({ operationalPoints, onSelect }: Props) {
             boxSizing: "border-box",
             padding: "8px 10px 8px 30px",
             borderRadius: 6,
-            border: "1px solid #d1d5db",
+            border: "1px solid var(--border)",
             fontSize: 13,
             fontFamily: "sans-serif",
-            boxShadow: "0 1px 4px rgba(0,0,0,0.15)",
+            boxShadow: "var(--shadow-sm)",
           }}
         />
       </div>
@@ -95,9 +95,9 @@ export function SearchBox({ operationalPoints, onSelect }: Props) {
         <div
           style={{
             marginTop: 4,
-            background: "white",
+            background: "var(--surface)",
             borderRadius: 6,
-            boxShadow: "0 1px 4px rgba(0,0,0,0.2)",
+            boxShadow: "var(--shadow-md)",
             overflow: "hidden",
             fontFamily: "sans-serif",
             fontSize: 13,
@@ -119,13 +119,13 @@ export function SearchBox({ operationalPoints, onSelect }: Props) {
                   textAlign: "left",
                   padding: "6px 10px",
                   border: "none",
-                  borderBottom: "1px solid #f3f4f6",
-                  background: i === highlighted ? "#eff6ff" : "white",
+                  borderBottom: "1px solid var(--divider)",
+                  background: i === highlighted ? "var(--accent-soft)" : "var(--surface)",
                   cursor: "pointer",
                 }}
               >
                 <div>{name}</div>
-                <div style={{ color: "#6b7280", fontSize: 11 }}>
+                <div style={{ color: "var(--text-muted)", fontSize: 11 }}>
                   {f.properties.uopid}
                 </div>
               </button>
@@ -138,12 +138,12 @@ export function SearchBox({ operationalPoints, onSelect }: Props) {
         <div
           style={{
             marginTop: 4,
-            background: "white",
+            background: "var(--surface)",
             borderRadius: 6,
-            boxShadow: "0 1px 4px rgba(0,0,0,0.2)",
+            boxShadow: "var(--shadow-md)",
             fontFamily: "sans-serif",
             fontSize: 12,
-            color: "#6b7280",
+            color: "var(--text-muted)",
             padding: "8px 10px",
           }}
         >

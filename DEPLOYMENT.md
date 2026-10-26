@@ -77,8 +77,9 @@ left unset unless that proxy is the only way in.
 ## Privacy
 
 If you run a public instance, publish a privacy notice. The app has no
-accounts and stores no cookies or browser storage, but it does process
-personal data:
+accounts and sets no cookies. It keeps two display preferences in the
+browser's local storage (whether the legend is collapsed, and the chosen
+colour theme), which never leave the device. It does process personal data:
 
 - **Server logs:** nginx access logs and the backend's request logs record
   client IP addresses and requested URLs (which include selected entities).

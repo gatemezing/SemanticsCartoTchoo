@@ -60,13 +60,21 @@ export class TtlCache {
   }
 }
 
-/** Whole-country layers, Wikidata enrichment and the dataset list. Every
- *  key here is derived from the server's own country registry (never from
- *  free-form input), so the key space is bounded by construction — 28
- *  countries × 5 per-country keys + 1 — and `max` sits above it, so
- *  nothing here is ever evicted before its TTL. That matters: one cold
- *  country load can take 2-3 minutes upstream (Germany). */
-export const datasetCache = new TtlCache({ max: 200 });
+/** Whole-country layers, Wikidata enrichment, the dataset list and other
+ *  per-country rollups. Every key here is derived from the server's own
+ *  registries (countries × fixed layer/parameter ids, never free-form
+ *  input), so the key space is bounded by construction and `max` sits
+ *  above it, so nothing here is ever evicted before its TTL. That
+ *  matters: one cold country load can take 2-3 minutes upstream
+ *  (Germany). DATASET_CACHE_KEYS_PER_COUNTRY counts the keys per country
+ *  — keep it in step when adding a per-country endpoint. */
+export const DATASET_CACHE_KEYS_PER_COUNTRY =
+  5 /* op, sol, tunnels, primary locations, wikidata */ +
+  4 /* infrastructure layers */ +
+  1 /* provider graphs */ +
+  4 /* track parameters */ +
+  1; /* national lines */
+export const datasetCache = new TtlCache({ max: 500 });
 
 /** Per-entity lookups keyed by user input (uopid detail, describe). Kept
  *  separate so that a flood of unique keys can only churn this cache,

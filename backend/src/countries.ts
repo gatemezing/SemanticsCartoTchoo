@@ -42,7 +42,7 @@ export const COUNTRIES: CountryInfo[] = [
   { code: "BG", label: "Bulgaria", iso3: "BGR", wikidataQid: "Q219", defaultViewport: { lat: 42.7, lon: 25.3, zoom: 6.5 } },
   { code: "SI", label: "Slovenia", iso3: "SVN", wikidataQid: "Q215", defaultViewport: { lat: 46.1, lon: 14.8, zoom: 7.7 } },
   { code: "IE", label: "Ireland", iso3: "IRL", wikidataQid: "Q27", defaultViewport: { lat: 53.4, lon: -8.0, zoom: 6.3 } },
-  { code: "EL", label: "Greece", iso3: "GRC", wikidataQid: "Q41", defaultViewport: { lat: 39.5, lon: 22.0, zoom: 5.8 } },
+  { code: "EL", label: "Greece", iso3: "GRC", wikidataQid: "Q41", uopidPrefix: "GR", defaultViewport: { lat: 39.5, lon: 22.0, zoom: 5.8 } },
   { code: "LT", label: "Lithuania", iso3: "LTU", wikidataQid: "Q37", defaultViewport: { lat: 55.3, lon: 23.9, zoom: 6.7 } },
   { code: "EE", label: "Estonia", iso3: "EST", wikidataQid: "Q191", defaultViewport: { lat: 58.7, lon: 25.5, zoom: 6.7 } },
   { code: "LU", label: "Luxembourg", iso3: "LUX", wikidataQid: "Q32", defaultViewport: { lat: 49.8, lon: 6.1, zoom: 9 } },
@@ -54,4 +54,16 @@ const BY_CODE = new Map(COUNTRIES.map((c) => [c.code, c]));
 
 export function getCountry(code: string): CountryInfo | undefined {
   return BY_CODE.get(code.toUpperCase());
+}
+
+/** The prefix this country's uopids actually carry in RINF. */
+export function uopidPrefixOf(country: CountryInfo): string {
+  return country.uopidPrefix ?? country.code;
+}
+
+const BY_UOPID_PREFIX = new Map(COUNTRIES.map((c) => [uopidPrefixOf(c), c]));
+
+/** The country a uopid belongs to, by its two-letter prefix. */
+export function countryOfUopid(uopid: string): CountryInfo | undefined {
+  return BY_UOPID_PREFIX.get(uopid.slice(0, 2).toUpperCase());
 }

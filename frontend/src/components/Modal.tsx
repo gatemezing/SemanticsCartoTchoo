@@ -20,7 +20,7 @@ export function Modal({ title, onClose, children }: Props) {
       style={{
         position: "absolute",
         inset: 0,
-        background: "rgba(17,24,39,0.35)",
+        background: "var(--overlay)",
         zIndex: 30,
         display: "flex",
         alignItems: "center",
@@ -34,16 +34,16 @@ export function Modal({ title, onClose, children }: Props) {
         aria-label={title}
         onClick={(e) => e.stopPropagation()}
         style={{
-          background: "white",
+          background: "var(--surface)",
           borderRadius: 8,
-          boxShadow: "0 8px 24px rgba(0,0,0,0.25)",
+          boxShadow: "var(--shadow-lg)",
           width: "100%",
           maxWidth: 760,
           maxHeight: "85vh",
           display: "flex",
           flexDirection: "column",
           fontFamily: "sans-serif",
-          color: "#1f2937",
+          color: "var(--text)",
         }}
       >
         <div
@@ -52,14 +52,14 @@ export function Modal({ title, onClose, children }: Props) {
             alignItems: "center",
             justifyContent: "space-between",
             padding: "12px 16px",
-            borderBottom: "1px solid #e5e7eb",
+            borderBottom: "1px solid var(--border-subtle)",
           }}
         >
           <h2 style={{ fontSize: 16, margin: 0 }}>{title}</h2>
           <button
             onClick={onClose}
             aria-label="Close"
-            style={{ border: "none", background: "none", fontSize: 18, cursor: "pointer", color: "#6b7280" }}
+            style={{ border: "none", background: "none", fontSize: 18, cursor: "pointer", color: "var(--text-muted)" }}
           >
             ×
           </button>

@@ -1,16 +1,23 @@
 import type { OperationalPointsCollection } from "@carto-rinf/shared-types";
 import type { SparqlJsonResults } from "../sparql/client.js";
-import { parseWktPoint } from "../wkt.js";
+import { wktToPoint } from "../wkt.js";
 import { linkFieldValue, literalFieldValue } from "./fieldValue.js";
+import { warnSkipped } from "./skipped.js";
 
 export function mapOperationalPoints(
   results: SparqlJsonResults,
 ): OperationalPointsCollection {
-  return {
-    type: "FeatureCollection",
-    features: results.results.bindings.map((b) => ({
+  const features: OperationalPointsCollection["features"] = [];
+  let skipped = 0;
+  for (const b of results.results.bindings) {
+    const geometry = wktToPoint(b.wkt.value);
+    if (!geometry) {
+      skipped++;
+      continue;
+    }
+    features.push({
       type: "Feature",
-      geometry: parseWktPoint(b.wkt.value),
+      geometry,
       properties: {
         uopid: b.uopid.value,
         rinfUri: b.op.value,
@@ -18,6 +25,8 @@ export function mapOperationalPoints(
         opType: linkFieldValue(b.opTypeURI, b.opTypeLabel, b.opTypeNA),
         country: linkFieldValue(b.countryURI, b.countryLabel, b.countryNA),
       },
-    })),
-  };
+    });
+  }
+  warnSkipped("operational points", skipped);
+  return { type: "FeatureCollection", features };
 }

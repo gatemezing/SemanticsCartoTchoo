@@ -1,0 +1,195 @@
+/* Colour tokens for the UI chrome. Components reference roles, never raw
+ * hex, so light and dark swap here only. Dark values are declared under
+ * both scopes: the media query follows the OS; [data-theme] is the
+ * viewer's own choice and wins both ways (the :not() guard lets an
+ * explicit "light" beat a dark OS; :where() keeps the media block's
+ * specificity below the explicit scope).
+ *
+ * Data colours (map layers, the line profile) are not here: they're
+ * validated palettes picked per theme in map/dataColors.ts. */
+:root {
+  color-scheme: light;
+  --surface: #ffffff;
+  --surface-raised: #ffffff;
+  --surface-translucent: rgba(255, 255, 255, 0.92);
+  --surface-hover: #f3f4f6;
+  --surface-sunken: #f9fafb;
+  --text: #1f2937;
+  --text-secondary: #4b5563;
+  --text-muted: #6b7280;
+  --text-subtle: #9ca3af;
+  --border: #d1d5db;
+  --border-subtle: #e5e7eb;
+  --divider: #f3f4f6;
+  --link: #1d4ed8;
+  --accent: #2563eb;
+  --accent-soft: #eff6ff;
+  --chip-active-bg: #1f2937;
+  --chip-active-text: #ffffff;
+  --danger-text: #b91c1c;
+  --danger-strong: #7f1d1d;
+  --danger-bg: #fef2f2;
+  --warning-text: #78350f;
+  --warning-strong: #92400e;
+  --warning-bg: #fef3c7;
+  --warning-border: #f59e0b;
+  --wikidata: #1a5fb4;
+  --overlay: rgba(17, 24, 39, 0.35);
+  --shadow-sm: 0 1px 4px rgba(0, 0, 0, 0.15);
+  --shadow-md: 0 1px 6px rgba(0, 0, 0, 0.2);
+  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.25);
+  --chart-surface: #fcfcfb;
+  --chart-grid: #e1e0d9;
+  --chart-axis: #c3c2b7;
+  --map-section: #0f766e;
+  --map-tunnel: #78350f;
+  --infra-ink: #3d3c39;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:where(:not([data-theme="light"])) {
+    color-scheme: dark;
+    --surface: #1f1f1d;
+    --surface-raised: #262624;
+    --surface-translucent: rgba(31, 31, 29, 0.92);
+    --surface-hover: #2f2f2c;
+    --surface-sunken: #181817;
+    --text: #f0efec;
+    --text-secondary: #c3c2b7;
+    --text-muted: #a3a29b;
+    --text-subtle: #898781;
+    --border: #45453f;
+    --border-subtle: #383835;
+    --divider: #2c2c2a;
+    --link: #8ab4f8;
+    --accent: #3987e5;
+    --accent-soft: #1c2a3d;
+    --chip-active-bg: #f0efec;
+    --chip-active-text: #1a1a19;
+    --danger-text: #f19999;
+    --danger-strong: #fbc4c4;
+    --danger-bg: #3a1c1c;
+    --warning-text: #f7d48a;
+    --warning-strong: #fbe2ab;
+    --warning-bg: #3a2e12;
+    --warning-border: #c98500;
+    --wikidata: #8ab4f8;
+    --overlay: rgba(0, 0, 0, 0.55);
+    --shadow-sm: 0 1px 4px rgba(0, 0, 0, 0.5);
+    --shadow-md: 0 1px 6px rgba(0, 0, 0, 0.55);
+    --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.6);
+    --chart-surface: #1a1a19;
+    --chart-grid: #2c2c2a;
+    --chart-axis: #383835;
+    --map-section: #2fb5a5;
+    --map-tunnel: #d9a066;
+    --infra-ink: #e1e0d9;
+  }
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --surface: #1f1f1d;
+  --surface-raised: #262624;
+  --surface-translucent: rgba(31, 31, 29, 0.92);
+  --surface-hover: #2f2f2c;
+  --surface-sunken: #181817;
+  --text: #f0efec;
+  --text-secondary: #c3c2b7;
+  --text-muted: #a3a29b;
+  --text-subtle: #898781;
+  --border: #45453f;
+  --border-subtle: #383835;
+  --divider: #2c2c2a;
+  --link: #8ab4f8;
+  --accent: #3987e5;
+  --accent-soft: #1c2a3d;
+  --chip-active-bg: #f0efec;
+  --chip-active-text: #1a1a19;
+  --danger-text: #f19999;
+  --danger-strong: #fbc4c4;
+  --danger-bg: #3a1c1c;
+  --warning-text: #f7d48a;
+  --warning-strong: #fbe2ab;
+  --warning-bg: #3a2e12;
+  --warning-border: #c98500;
+  --wikidata: #8ab4f8;
+  --overlay: rgba(0, 0, 0, 0.55);
+  --shadow-sm: 0 1px 4px rgba(0, 0, 0, 0.5);
+  --shadow-md: 0 1px 6px rgba(0, 0, 0, 0.55);
+  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.6);
+  --chart-surface: #1a1a19;
+  --chart-grid: #2c2c2a;
+  --chart-axis: #383835;
+  --map-section: #2fb5a5;
+  --map-tunnel: #d9a066;
+  --infra-ink: #e1e0d9;
+}
+
+html,
+body {
+  margin: 0;
+  background: var(--surface-sunken);
+  color: var(--text);
+  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+
+/* MapLibre's own chrome (popups, controls, attribution) follows the theme. */
+.maplibregl-popup-content {
+  background: var(--surface-raised);
+  color: var(--text);
+  box-shadow: var(--shadow-md);
+}
+.maplibregl-popup-close-button {
+  color: var(--text-muted);
+}
+.maplibregl-popup-anchor-top .maplibregl-popup-tip,
+.maplibregl-popup-anchor-top-left .maplibregl-popup-tip,
+.maplibregl-popup-anchor-top-right .maplibregl-popup-tip {
+  border-bottom-color: var(--surface-raised);
+}
+.maplibregl-popup-anchor-bottom .maplibregl-popup-tip,
+.maplibregl-popup-anchor-bottom-left .maplibregl-popup-tip,
+.maplibregl-popup-anchor-bottom-right .maplibregl-popup-tip {
+  border-top-color: var(--surface-raised);
+}
+.maplibregl-popup-anchor-left .maplibregl-popup-tip {
+  border-right-color: var(--surface-raised);
+}
+.maplibregl-popup-anchor-right .maplibregl-popup-tip {
+  border-left-color: var(--surface-raised);
+}
+.maplibregl-popup-content a {
+  color: var(--link);
+}
+:root[data-theme="dark"] .maplibregl-ctrl-group,
+:root[data-theme="dark"] .maplibregl-ctrl-attrib {
+  filter: invert(0.9) hue-rotate(180deg);
+}
+@media (prefers-color-scheme: dark) {
+  :root:where(:not([data-theme="light"])) .maplibregl-ctrl-group,
+  :root:where(:not([data-theme="light"])) .maplibregl-ctrl-attrib {
+    filter: invert(0.9) hue-rotate(180deg);
+  }
+}
+
+/* Phone layout: panels become bottom sheets (see components using these). */
+.detail-panel {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 360px;
+  max-width: 85vw;
+  box-sizing: border-box;
+}
+@media (max-width: 640px) {
+  .detail-panel {
+    top: auto;
+    left: 0;
+    width: auto;
+    max-width: none;
+    height: 58vh;
+    border-radius: 14px 14px 0 0;
+  }
+}

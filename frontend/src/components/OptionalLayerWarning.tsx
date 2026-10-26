@@ -6,22 +6,19 @@ interface Props {
 /** Distinct from ErrorBanner (which blocks the whole map): this is for a
  *  layer that failed but shouldn't stop the rest of the map from being
  *  useful — e.g. a country whose primary-locations query is heavy enough
- *  to occasionally exceed the RINF endpoint's own server-side timeout. */
+ *  to occasionally exceed the RINF endpoint's own server-side timeout.
+ *  Positioned by its container (the bottom-right stack in App). */
 export function OptionalLayerWarning({ layers, onRetry }: Props) {
   return (
     <div
       style={{
-        position: "absolute",
-        bottom: 24,
-        right: 12,
-        zIndex: 15,
-        background: "#fef3c7",
-        border: "1px solid #f59e0b",
+        background: "var(--warning-bg)",
+        border: "1px solid var(--warning-border)",
         borderRadius: 6,
         padding: "8px 10px",
         fontSize: 12,
         fontFamily: "sans-serif",
-        color: "#78350f",
+        color: "var(--warning-text)",
         maxWidth: 240,
       }}
     >
@@ -35,10 +32,10 @@ export function OptionalLayerWarning({ layers, onRetry }: Props) {
           marginTop: 6,
           padding: "3px 8px",
           fontSize: 11,
-          border: "1px solid #f59e0b",
+          border: "1px solid var(--warning-border)",
           borderRadius: 4,
-          background: "white",
-          color: "#78350f",
+          background: "var(--surface)",
+          color: "var(--warning-text)",
           cursor: "pointer",
         }}
       >

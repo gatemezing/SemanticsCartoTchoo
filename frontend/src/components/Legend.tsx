@@ -1,6 +1,9 @@
 import { useState } from "react";
-import type {
-  OperationalPointsCollection,
+import {
+  INFRASTRUCTURE_KINDS,
+  type InfrastructureCollection,
+  type InfrastructureKind,
+  type OperationalPointsCollection,
   PrimaryLocationsCollection,
   SectionOfLineCollection,
   TunnelsCollection,
@@ -11,6 +14,16 @@ import {
   OTHER_LABEL,
   presentOpTypeKeys,
 } from "../map/opTypeColors";
+import { INFRA_LABELS, INFRA_SHAPES, SHAPE_PATHS } from "../map/infrastructureMarkers";
+
+/** The marker shape of an infrastructure layer, as drawn on the map. */
+export function InfraShape({ kind, size = 12 }: { kind: InfrastructureKind; size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" aria-hidden="true" style={{ flexShrink: 0 }}>
+      <path d={SHAPE_PATHS[INFRA_SHAPES[kind]]} fill="var(--infra-ink)" stroke="var(--surface)" strokeWidth={2} />
+    </svg>
+  );
+}
 
 const LEGEND_COLLAPSED_KEY = "cartoRinf.legendCollapsed";
 
@@ -29,6 +42,10 @@ interface Props {
   primaryLocations: PrimaryLocationsCollection;
   hiddenOpTypeKeys: Set<string>;
   onToggleOpTypeKeys: (keys: string[]) => void;
+  /** Opt-in infrastructure layers that are on (and loaded). */
+  infrastructure: Partial<Record<InfrastructureKind, InfrastructureCollection>>;
+  /** Sections are explained by the colour legend instead while coloured. */
+  sectionsColoured: boolean;
 }
 
 /** Every color here is always paired with this visible text label — colors
@@ -45,6 +62,8 @@ export function Legend({
   primaryLocations,
   hiddenOpTypeKeys,
   onToggleOpTypeKeys,
+  infrastructure,
+  sectionsColoured,
 }: Props) {
   const [collapsed, setCollapsed] = useState(readCollapsedPreference);
 
@@ -65,7 +84,12 @@ export function Legend({
     e.keys.some((k) => present.has(k)),
   );
   const hasOther = present.has(OTHER_LABEL);
-  const hasSectionsOfLine = sectionsOfLine.features.length > 0;
+  const hasRealSections =
+    !sectionsColoured && sectionsOfLine.features.some((f) => !f.properties.geometryIsApproximate);
+  const hasApproxSections =
+    !sectionsColoured && sectionsOfLine.features.some((f) => f.properties.geometryIsApproximate);
+  const hasSectionsOfLine = hasRealSections || hasApproxSections;
+  const infraShown = INFRASTRUCTURE_KINDS.filter((k) => infrastructure[k]);
   const hasTunnels = tunnels.features.length > 0;
   const hasPrimaryLocations = primaryLocations.features.length > 0;
   const hasWikidataEnrichment = primaryLocations.features.some(
@@ -78,12 +102,12 @@ export function Legend({
         position: "absolute",
         bottom: 24,
         left: 12,
-        background: "rgba(255,255,255,0.95)",
+        background: "var(--surface-translucent)",
         borderRadius: 6,
         fontSize: 12,
         fontFamily: "sans-serif",
-        color: "#1f2937",
-        boxShadow: "0 1px 4px rgba(0,0,0,0.2)",
+        color: "var(--text)",
+        boxShadow: "var(--shadow-md)",
         maxWidth: 220,
         overflow: "hidden",
       }}
@@ -107,7 +131,7 @@ export function Legend({
         }}
       >
         <span>Legend</span>
-        <span style={{ color: "#9ca3af" }}>{collapsed ? "▸" : "▾"}</span>
+        <span style={{ color: "var(--text-subtle)" }}>{collapsed ? "▸" : "▾"}</span>
       </button>
 
       {!collapsed && (
@@ -115,7 +139,7 @@ export function Legend({
           <div style={{ fontWeight: 700, marginBottom: 4 }}>
             Operational point type
           </div>
-          <div style={{ fontSize: 10.5, color: "#9ca3af", marginBottom: 4 }}>
+          <div style={{ fontSize: 10.5, color: "var(--text-subtle)", marginBottom: 4 }}>
             Click a row to hide/show it on the map
           </div>
           {pointEntries.map((entry) => {
@@ -142,7 +166,7 @@ export function Legend({
                   textAlign: "left",
                   opacity: hidden ? 0.4 : 1,
                 }}
-                onMouseEnter={(e) => (e.currentTarget.style.background = "#f3f4f6")}
+                onMouseEnter={(e) => (e.currentTarget.style.background = "var(--divider)")}
                 onMouseLeave={(e) => (e.currentTarget.style.background = "none")}
               >
                 <span
@@ -152,7 +176,7 @@ export function Legend({
                     height: 10,
                     borderRadius: "50%",
                     background: entry.color,
-                    border: "1px solid white",
+                    border: "1px solid var(--surface)",
                     boxShadow: "0 0 0 1px rgba(0,0,0,0.25)",
                     flexShrink: 0,
                   }}
@@ -184,7 +208,7 @@ export function Legend({
                 textAlign: "left",
                 opacity: hiddenOpTypeKeys.has(OTHER_LABEL) ? 0.4 : 1,
               }}
-              onMouseEnter={(e) => (e.currentTarget.style.background = "#f3f4f6")}
+              onMouseEnter={(e) => (e.currentTarget.style.background = "var(--divider)")}
               onMouseLeave={(e) => (e.currentTarget.style.background = "none")}
             >
               <span
@@ -194,7 +218,7 @@ export function Legend({
                   height: 10,
                   borderRadius: "50%",
                   background: OTHER_COLOR,
-                  border: "1px solid white",
+                  border: "1px solid var(--surface)",
                   boxShadow: "0 0 0 1px rgba(0,0,0,0.25)",
                   flexShrink: 0,
                 }}
@@ -211,23 +235,37 @@ export function Legend({
             </button>
           )}
 
-          {(hasSectionsOfLine || hasTunnels || hasPrimaryLocations) && (
+          {(hasSectionsOfLine || hasTunnels || hasPrimaryLocations || infraShown.length > 0) && (
             <div style={{ fontWeight: 700, marginTop: 8, marginBottom: 4 }}>
               Lines &amp; markers
             </div>
           )}
-          {hasSectionsOfLine && (
+          {hasRealSections && (
             <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 2 }}>
               <span
                 style={{
                   display: "inline-block",
                   width: 16,
                   height: 0,
-                  borderTop: "2px dashed #0f766e",
+                  borderTop: "2px solid var(--map-section)",
                   flexShrink: 0,
                 }}
               />
-              <span>Section of line (approximate)</span>
+              <span>Section of line</span>
+            </div>
+          )}
+          {hasApproxSections && (
+            <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 2 }}>
+              <span
+                style={{
+                  display: "inline-block",
+                  width: 16,
+                  height: 0,
+                  borderTop: "2px dashed var(--map-section)",
+                  flexShrink: 0,
+                }}
+              />
+              <span>Section of line (straight line: no real alignment in RINF)</span>
             </div>
           )}
           {hasTunnels && (
@@ -237,7 +275,7 @@ export function Legend({
                   display: "inline-block",
                   width: 16,
                   height: 0,
-                  borderTop: "3px solid #78350f",
+                  borderTop: "3px solid var(--map-tunnel)",
                   flexShrink: 0,
                 }}
               />
@@ -274,6 +312,17 @@ export function Legend({
               <span>...with Wikidata accessibility info</span>
             </div>
           )}
+          {infraShown.map((kind) => (
+            <div key={kind} style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 4 }}>
+              <InfraShape kind={kind} />
+              <span>
+                {INFRA_LABELS[kind]}{" "}
+                <span style={{ color: "var(--text-muted)" }}>
+                  ({infrastructure[kind]!.features.length.toLocaleString()})
+                </span>
+              </span>
+            </div>
+          ))}
         </div>
       )}
     </div>

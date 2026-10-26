@@ -41,6 +41,12 @@ export interface CountryInfo {
    *  France) whose validity windows are long-lived and don't begin in the
    *  current year at all. */
   validityStrategy?: "range" | "annual-begin";
+  /** The uopid prefix of this country's operational points, when it
+   *  differs from `code`. Greece: the registry code is "EL" (as in ERA's
+   *  dataset explorer and the EU's own country codes), but its uopids in
+   *  RINF start with "GR" (confirmed live 2026-10: 253 uopids, none with
+   *  "EL" — which had left the Greek map empty). */
+  uopidPrefix?: string;
 }
 
 export interface OperationalPointProperties {
@@ -74,18 +80,22 @@ export interface SectionOfLineProperties {
   opEndUopid: string;
   opStartName: FieldValue<string>;
   opEndName: FieldValue<string>;
-  /** Always true today: RINF only carries the two endpoint coordinates, not
-   *  a real track polyline. The UI must render this fact, not hide it. */
-  geometryIsApproximate: true;
+  /** True when the geometry is just the straight line between the two
+   *  endpoints (two vertices) rather than a real track polyline. Varies by
+   *  provider: Luxembourg's sections, for instance, carry the real alignment
+   *  (one has 123 vertices). The UI must render this fact, not hide it. */
+  geometryIsApproximate: boolean;
 }
 
+/** Usually one LineString; a MultiLineString when a provider gives the
+ *  section in several parts (e.g. some Norwegian geometry). */
 export type SectionOfLineFeature = GeoJSON.Feature<
-  GeoJSON.LineString,
+  GeoJSON.LineString | GeoJSON.MultiLineString,
   SectionOfLineProperties
 >;
 
 export type SectionOfLineCollection = GeoJSON.FeatureCollection<
-  GeoJSON.LineString,
+  GeoJSON.LineString | GeoJSON.MultiLineString,
   SectionOfLineProperties
 >;
 
@@ -95,10 +105,13 @@ export interface TunnelProperties {
   lengthMetres: FieldValue<number>;
 }
 
-export type TunnelFeature = GeoJSON.Feature<GeoJSON.LineString, TunnelProperties>;
+export type TunnelFeature = GeoJSON.Feature<
+  GeoJSON.LineString | GeoJSON.MultiLineString,
+  TunnelProperties
+>;
 
 export type TunnelsCollection = GeoJSON.FeatureCollection<
-  GeoJSON.LineString,
+  GeoJSON.LineString | GeoJSON.MultiLineString,
   TunnelProperties
 >;
 
@@ -213,6 +226,120 @@ export interface RinfDataset {
   /** RINF country code (same convention as CountryInfo.code, e.g. "EL"). */
   countryCode: string;
   countryName: string;
+}
+
+/** Infrastructure classes served as optional map layers by
+ *  GET /api/infrastructure/:kind. RINF only has these for a few countries
+ *  (surveyed 2026-10: AT, NO, EL, LT), so an empty collection is a normal
+ *  answer, not an error. */
+export const INFRASTRUCTURE_KINDS = [
+  "level-crossings",
+  "bridges",
+  "signals",
+  "switches",
+] as const;
+export type InfrastructureKind = (typeof INFRASTRUCTURE_KINDS)[number];
+
+export interface InfrastructureProperties {
+  rinfUri: string;
+  kind: InfrastructureKind;
+  label: FieldValue<string>;
+  /** Class-specific type, where RINF has one (era:signalType). */
+  subtype?: FieldValue<RinfLink>;
+}
+
+/** Geometry varies by provider: points, lines (bridges), polygons
+ *  (Austrian switches and level crossings), or collections of these. */
+export type InfrastructureCollection = GeoJSON.FeatureCollection<
+  GeoJSON.Geometry,
+  InfrastructureProperties
+>;
+
+/** Running-track parameters that can be rolled up per section of line —
+ *  for colouring the map and for the line profile. */
+export const TRACK_PARAMETERS = [
+  "maxSpeed",
+  "electrification",
+  "gauge",
+  "etcsLevel",
+] as const;
+export type TrackParameterId = (typeof TRACK_PARAMETERS)[number];
+
+/** What a section's running tracks say about one parameter.
+ *  - numeric: lowest and highest value across the tracks that have one;
+ *  - categorical: every distinct value across the tracks, as concept IRIs
+ *    (or the synthetic NOT_ELECTRIFIED value), labels in `categories`.
+ *  A section absent from `values` has no track with this parameter in
+ *  RINF — rendered as "no data", never as a default. */
+export type SectionParameterValue =
+  | { kind: "numeric"; min: number; max: number }
+  | { kind: "categorical"; values: string[] };
+
+export interface SectionParameters {
+  param: TrackParameterId;
+  kind: "numeric" | "categorical";
+  unit?: string;
+  /** Keyed by section-of-line IRI (SectionOfLineProperties.rinfUri). */
+  values: Record<string, SectionParameterValue>;
+  /** Labels for categorical values. `label` is absent when RINF's own
+   *  vocabulary has no label for the code (some are referenced by data
+   *  but not defined); the UI then shows the code itself. */
+  categories: { value: string; label?: string; sections: number }[];
+}
+
+/** Synthetic electrification value: a contact-line system of type "Not
+ *  electrified" (RINF models non-electrified track that way, without an
+ *  energy supply system). Distinct from "no data": tracks with no
+ *  contact-line system at all are simply absent. */
+export const NOT_ELECTRIFIED = "urn:carto-rinf:not-electrified";
+
+/** Typed detail of one section of line (GET /api/sections-of-line/detail). */
+export interface SectionOfLineDetail {
+  rinfUri: string;
+  label: FieldValue<string>;
+  lengthKm: FieldValue<number>;
+  nature: FieldValue<RinfLink>;
+  nationalLine: FieldValue<RinfLink>;
+  infrastructureManager: FieldValue<RinfLink>;
+  opStart: { uopid: string; name: FieldValue<string> };
+  opEnd: { uopid: string; name: FieldValue<string> };
+  validityPeriod: FieldValue<string>;
+  /** Count of running tracks (a derived aggregate: absent means zero). */
+  runningTracks: number;
+  parameters: Partial<Record<TrackParameterId, SectionParameterValue>>;
+  /** Labels for the categorical values in `parameters`. */
+  categoryLabels: Record<string, string>;
+}
+
+/** One national line in a country (era:nationalLine), for the line picker. */
+export interface NationalLine {
+  iri: string;
+  label: string;
+  sections: number;
+  lengthKm: number;
+}
+
+export interface LineProfileSegment {
+  rinfUri: string;
+  /** Position along the chained line, in km from its start. */
+  startKm: number;
+  endKm: number;
+  /** False when RINF has no length for this section: it's drawn with a
+   *  nominal width so the sequence stays readable, and flagged. */
+  lengthKnown: boolean;
+  /** Whether the section runs opEnd → opStart in this chain. */
+  reversed: boolean;
+  from: { uopid: string; name: FieldValue<string> };
+  to: { uopid: string; name: FieldValue<string> };
+  parameters: Partial<Record<TrackParameterId, SectionParameterValue>>;
+}
+
+export interface LineProfile {
+  line: { iri: string; label: string };
+  /** One run per connected group of sections, longest first. Within a
+   *  run, consecutive segments share an operational point. */
+  runs: LineProfileSegment[][];
+  categoryLabels: Record<string, string>;
 }
 
 /** Every API response is wrapped so the frontend can distinguish a live

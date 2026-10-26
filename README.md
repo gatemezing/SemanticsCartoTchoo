@@ -8,18 +8,21 @@ The stack is a Node.js/Fastify backend (SPARQL querying, response caching, RDF-t
 
 ## Features
 
-- **Map** of operational points (coloured by type), sections of line, tunnels and primary locations for any of the 28 countries in RINF, with search by name or uopid.
-- **Describe**: click any point, section of line, tunnel or primary location to browse every RDF triple RINF holds for it, outgoing or incoming, and follow links (to tracks, SKOS concepts, linear positioning systems and so on), all read live over SPARQL.
-- **Datasets**: the latest dataset each infrastructure manager published to RINF (ERA's dataset explorer), filtered to the current country.
-- **Layers**: switch layers on and off, and add the OpenRailwayMap overlay.
-- **Export** what's loaded for the current country as CSV (operational points, sections of line, tunnels) or as one GeoJSON file.
-- **Shareable links**: the URL holds the country, viewport and selection (`/{country}/{lat},{lon},{zoom}/{uopid}`, or `?sel=<IRI>` for other entities), plus hidden layers (`?hide=`) and the overlay (`?orm=1`). Back and Forward move between selections.
+- **Map** of operational points (coloured by type), sections of line (solid where RINF has the real alignment, dashed where it's only the straight line between endpoints), tunnels and primary locations, for any of the 28 countries in RINF, with search by name or uopid.
+- **More infrastructure**, opt-in: level crossings, bridges, signals and switches, where a country publishes them (currently Austria, Norway, Greece and Lithuania).
+- **Section of line details**: length, nature, national line, infrastructure manager and validity, plus maximum speed, electrification, gauge and ETCS level rolled up from its running tracks.
+- **Colour sections by** maximum speed, electrification, track gauge or ETCS level, with a legend that counts sections and a hover value per section.
+- **Line profile**: lay a national line out along its length, with speed, electrification, gauge and ETCS rows, a hover crosshair synced with the map, a table view and CSV export.
+- **Describe**: click anything to browse every RDF triple RINF holds for it, outgoing or incoming, follow links, and download it as Turtle. Everything is read live over SPARQL.
+- **Datasets**: the latest dataset each infrastructure manager published to RINF (ERA's dataset explorer).
+- **Layers and overlay** toggles (including OpenRailwayMap), **export** to CSV or GeoJSON, **light and dark themes**, and a **phone layout** with bottom sheets.
+- **Shareable links**: the URL holds the country, viewport and selection, plus layers (`?hide=`, `?show=`), overlay (`?orm=1`), colouring (`?col=`) and line profile (`?lp=`). Back and Forward move between selections.
 
 See [docs/ROADMAP.md](docs/ROADMAP.md) for how this compares with [RINF Atlas](https://github.com/Matdata-eu/rinf-atlas) and what isn't implemented yet.
 
 ## Tests
 
-`npm test` runs the backend and frontend unit tests with Node's built-in test runner (via `tsx`, with no extra dependencies).
+`npm test` runs the backend and frontend unit tests with Node's built-in test runner (via `tsx`). `npm run test:e2e --workspace=frontend` runs the Playwright end-to-end tests against the production build, on desktop and phone, with the API replayed from recorded fixtures. Run `npx playwright install chromium` once first, or set `PLAYWRIGHT_CHROMIUM_EXECUTABLE` to a local Chrome.
 
 ## Licence
 

@@ -12,6 +12,9 @@ test("older links without a query string still parse", () => {
     selectedIri: null,
     hiddenLayers: [],
     openRailwayMap: false,
+    shownInfrastructure: [],
+    colourBy: null,
+    lineProfile: null,
   });
 });
 
@@ -56,4 +59,25 @@ test("uopids with spaces, + and non-ASCII letters round-trip through the path", 
 
 test("unknown layer ids in ?hide= are dropped", () => {
   assert.deepEqual(parseRoute("/FR/", "?hide=tunnels,bogus").hiddenLayers, ["tunnels"]);
+});
+
+test("round-trips infrastructure layers, colouring and line profile", () => {
+  const line = "http://data.europa.eu/949/lrs/3d5c54deb2";
+  const url = formatRoute("LU", vp, null, {
+    shownInfrastructure: ["switches", "level-crossings"],
+    colourBy: "electrification",
+    lineProfile: line,
+  });
+  const [path, search] = url.split("?");
+  const parsed = parseRoute(path, `?${search}`);
+  assert.deepEqual(parsed.shownInfrastructure, ["level-crossings", "switches"]);
+  assert.equal(parsed.colourBy, "electrification");
+  assert.equal(parsed.lineProfile, line);
+});
+
+test("unknown colour parameters and non-http line IRIs are ignored", () => {
+  const parsed = parseRoute("/LU/", "?col=voltage&lp=javascript:alert(1)&show=tunnels,signals");
+  assert.equal(parsed.colourBy, null);
+  assert.equal(parsed.lineProfile, null);
+  assert.deepEqual(parsed.shownInfrastructure, ["signals"]);
 });

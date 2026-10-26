@@ -2,6 +2,13 @@ import type {
   ApiEnvelope,
   CountryInfo,
   DescribeResult,
+  InfrastructureCollection,
+  InfrastructureKind,
+  LineProfile,
+  NationalLine,
+  SectionOfLineDetail,
+  SectionParameters,
+  TrackParameterId,
   OperationalPointDetail,
   OperationalPointsCollection,
   PrimaryLocationsCollection,
@@ -82,4 +89,37 @@ export function fetchDescribe(
 
 export function fetchDatasets(): Promise<RinfDataset[]> {
   return getEnvelope("/api/datasets");
+}
+
+export function fetchInfrastructure(
+  kind: InfrastructureKind,
+  country: string,
+): Promise<InfrastructureCollection> {
+  return getEnvelope(`/api/infrastructure/${kind}?country=${country}`);
+}
+
+export function fetchSectionParameters(
+  country: string,
+  param: TrackParameterId,
+): Promise<SectionParameters> {
+  return getEnvelope(`/api/section-parameters?country=${country}&param=${param}`);
+}
+
+export function fetchSectionDetail(iri: string): Promise<SectionOfLineDetail> {
+  return getEnvelope(`/api/sections-of-line/detail?iri=${encodeURIComponent(iri)}`);
+}
+
+export function fetchNationalLines(country: string): Promise<NationalLine[]> {
+  return getEnvelope(`/api/lines?country=${country}`);
+}
+
+export function fetchLineProfile(country: string, line: string): Promise<LineProfile> {
+  return getEnvelope(
+    `/api/line-profile?country=${country}&line=${encodeURIComponent(line)}`,
+  );
+}
+
+/** Direct download link (not fetched): the browser saves the Turtle file. */
+export function describeTurtleUrl(iri: string): string {
+  return `${API_BASE_URL}/api/describe.ttl?iri=${encodeURIComponent(iri)}`;
 }
