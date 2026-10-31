@@ -2,6 +2,7 @@ import type { OperationalPointsCollection } from "@carto-rinf/shared-types";
 import type { SparqlJsonResults } from "../sparql/client.js";
 import { wktToPoint } from "../wkt.js";
 import { linkFieldValue, literalFieldValue } from "./fieldValue.js";
+import { opTypeFieldValue } from "./opType.js";
 import { warnSkipped } from "./skipped.js";
 
 export function mapOperationalPoints(
@@ -22,7 +23,7 @@ export function mapOperationalPoints(
         uopid: b.uopid.value,
         rinfUri: b.op.value,
         name: literalFieldValue(b.opName, b.opNameNA),
-        opType: linkFieldValue(b.opTypeURI, b.opTypeLabel, b.opTypeNA),
+        opType: opTypeFieldValue(b.opTypeURI, b.opTypeLabel, b.opTypeNA),
         country: linkFieldValue(b.countryURI, b.countryLabel, b.countryNA),
       },
     });
