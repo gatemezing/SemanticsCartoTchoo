@@ -10,7 +10,7 @@ test("Croatian provider concepts get ERA's canonical label, keeping their IRI", 
   const hr = `${ERAC}OperationalPointTypes/10`;
   assert.deepEqual(opTypeFieldValue(uri(hr), lit("Station"), undefined), {
     status: "value",
-    value: { uri: hr, label: "station" },
+    value: { uri: hr, label: "station", providerConcept: true, providerLabel: "Station" },
   });
   for (const [code, label, typo] of [
     ["100", "shunting yard", "Shuting yard"],
@@ -25,6 +25,7 @@ test("Croatian provider concepts get ERA's canonical label, keeping their IRI", 
 test("ERA concepts and unknown ones pass through (trimmed)", () => {
   const era = opTypeFieldValue(uri(`${ERAC}80`), lit("junction"), undefined);
   assert.equal(era.status === "value" && era.value.label, "junction");
+  assert.equal(era.status === "value" && era.value.providerConcept, undefined);
   const odd = opTypeFieldValue(uri(`${ERAC}OperationalPointTypes/999`), lit("Odd \r\n"), undefined);
   assert.equal(odd.status === "value" && odd.value.label, "Odd");
   assert.deepEqual(opTypeFieldValue(undefined, undefined, undefined), { status: "not_available_in_rinf" });

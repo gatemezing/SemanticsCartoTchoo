@@ -31,6 +31,8 @@ const ERA_OP_TYPE_LABELS: Record<string, string> = {
  *  vocabulary; the provider's IRI is kept as the link target. */
 const OP_TYPE_CODE = /\/concepts\/op-types\/(?:OperationalPointTypes\/)?(\d+)$/;
 
+const PROVIDER_CONCEPT = /\/concepts\/op-types\/OperationalPointTypes\/\d+$/;
+
 export function opTypeFieldValue(
   uriTerm: SparqlTerm | undefined,
   labelTerm: SparqlTerm | undefined,
@@ -40,7 +42,14 @@ export function opTypeFieldValue(
   if (field.status !== "value") return field;
   const code = OP_TYPE_CODE.exec(field.value.uri)?.[1];
   const label = code ? ERA_OP_TYPE_LABELS[code] : undefined;
-  if (label) return { status: "value", value: { ...field.value, label } };
+  if (label) {
+    const link: RinfLink = { ...field.value, label };
+    if (PROVIDER_CONCEPT.test(field.value.uri)) {
+      link.providerConcept = true;
+      if (field.value.label?.trim()) link.providerLabel = field.value.label.trim();
+    }
+    return { status: "value", value: link };
+  }
   if (field.value.label !== undefined) {
     return {
       status: "value",
