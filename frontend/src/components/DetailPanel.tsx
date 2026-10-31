@@ -108,6 +108,23 @@ function OperationalPointBody({ uopid }: { uopid: string }) {
             value={linkFieldValueLabel(data.opType)}
             muted={data.opType.status !== "value"}
           />
+          {data.opType.status === "value" && data.opType.value.providerConcept && (
+            <p
+              role="note"
+              style={{
+                margin: "-4px 0 8px",
+                fontSize: 12,
+                color: "var(--text-muted)",
+              }}
+            >
+              This data provider publishes its own operational point type
+              concept instead of ERA's
+              {data.opType.value.providerLabel
+                ? ` (labelled “${data.opType.value.providerLabel}”)`
+                : ""}
+              . The type shown is ERA's label for the same type code.
+            </p>
+          )}
           <FieldRow
             label="Country"
             value={linkFieldValueLabel(data.country)}

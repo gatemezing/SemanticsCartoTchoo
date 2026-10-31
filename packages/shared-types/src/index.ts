@@ -16,6 +16,12 @@ export type FieldValue<T> =
 export interface RinfLink {
   uri: string;
   label?: string;
+  /** Set when the data provider published its own concept for this value
+   *  instead of ERA's (e.g. Croatia's operational point types), and `label`
+   *  was replaced by ERA's label for the same code. */
+  providerConcept?: true;
+  /** The provider's own label, as published, when it was replaced. */
+  providerLabel?: string;
 }
 
 /** One entry in the country registry served by GET /api/countries — see

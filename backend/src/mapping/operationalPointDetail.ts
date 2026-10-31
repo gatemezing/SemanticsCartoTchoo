@@ -4,6 +4,7 @@ import type {
 } from "@carto-rinf/shared-types";
 import type { SparqlBinding } from "../sparql/client.js";
 import { linkFieldValue, literalFieldValue } from "./fieldValue.js";
+import { opTypeFieldValue } from "./opType.js";
 
 /** partsCount and primaryLocationCodes are derived aggregates, not raw RINF
  *  triples — an absent binding here means "counted zero", a genuine value,
@@ -27,7 +28,7 @@ export function mapOperationalPointDetail(
     uopid,
     rinfUri: b.op.value,
     name: literalFieldValue(b.opName, b.opNameNA),
-    opType: linkFieldValue(b.opTypeURI, b.opTypeLabel, b.opTypeNA),
+    opType: opTypeFieldValue(b.opTypeURI, b.opTypeLabel, b.opTypeNA),
     country: linkFieldValue(b.countryURI, b.countryLabel, b.countryNA),
     validityPeriod: literalFieldValue(b.validityLabel, undefined),
     partsCount,
