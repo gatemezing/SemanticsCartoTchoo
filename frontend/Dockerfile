@@ -1,5 +1,5 @@
 # Build from the repository root: docker build -f frontend/Dockerfile .
-FROM node:22-slim AS build
+FROM node:26-slim AS build
 WORKDIR /app
 
 # Empty default = relative /api/... calls, proxied to the backend service
