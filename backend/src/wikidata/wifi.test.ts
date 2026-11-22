@@ -81,7 +81,7 @@ test("the Wi-Fi summary counts RINF stations by their matched item's Wi-Fi", () 
       { station: wd("Q1"), country: wd("Q142"), wifi: FREE, plc: lit("FR02494") },
       { station: wd("Q2"), country: wd("Q142"), wifi: FREE, eraId: lit("FR0000000009") },
       { station: wd("Q3"), country: wd("Q142"), wifi: NO, plc: lit("FR00777") },
-      { station: wd("Q4"), country: wd("Q142"), wifi: FREE, plc: lit("FR00888") }, // never matched
+      { station: wd("Q4"), country: wd("Q142"), wifi: FREE, plc: lit("FR00888") }, // a junction's: matched, never counted
       // A border item in two countries; and a country outside RINF.
       { station: wd("Q5"), country: wd("Q142"), wifi: FREE, plc: lit("FR00999") },
       { station: wd("Q5"), country: wd("Q183"), wifi: FREE, plc: lit("FR00999") },
@@ -104,7 +104,8 @@ test("the Wi-Fi summary counts RINF stations by their matched item's Wi-Fi", () 
     station("FR02494", "FR0000002651"), // PLC match, free
     station("FR08165", "FR0000000009"), // ERA ID match of its point, free
     station("FR00777", "FR0000000777"), // PLC match, no Wi-Fi
-    station("FR00999", "FR0000000999", "70"), // a passenger stop: not a station
+    station("FR00999", "FR0000000999", "70"), // a passenger stop counts as a station
+    station("FR00888", "FR0000000888", "80"), // a junction doesn't
     { ...station("FR00555", "FR0000000555"), opTypeURI: uri("http://data.europa.eu/949/concepts/op-types/OperationalPointTypes/10") },
   ]);
   const frStations = countStationsByWifi(rinf, fr.index);
@@ -120,15 +121,20 @@ test("the Wi-Fi summary counts RINF stations by their matched item's Wi-Fi", () 
   assert.deepEqual(
     summary.countries.map((c) => [c.code, c.stations.free, c.stations.none, c.wikidata.free, c.wikidata.none]),
     [
-      ["FR", 2, 1, 4, 1],
+      ["FR", 3, 1, 4, 1],
       ["DE", 0, 0, 1, 0],
       ["LU", 0, 0, 0, 0],
     ],
   );
   // The border item counts once in total.
   assert.deepEqual(summary.total.wikidata, { free: 4, paid: 0, available: 0, none: 1 });
-  assert.deepEqual(summary.total.stations, { free: 2, paid: 0, available: 0, none: 1 });
-  assert.deepEqual(summary.stationTypes, [{ code: "10", label: "station" }]);
+  assert.deepEqual(summary.total.stations, { free: 3, paid: 0, available: 0, none: 1 });
+  assert.deepEqual(summary.stationTypes, [
+    { code: "10", label: "station" },
+    { code: "20", label: "small station" },
+    { code: "70", label: "passenger stop" },
+  ]);
+  assert.match(summary.definition, /“small station” \(op-types\/20\) or “passenger stop” \(op-types\/70\)/);
 });
 
 test("the Wi-Fi queries cover every RINF country and only look up code-shaped values", () => {

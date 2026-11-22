@@ -12,13 +12,19 @@ import { wktToPoint } from "../wkt.js";
 import { mapWikidataStations, matchWikidataStation, wifiAccess, type WikidataStationIndex } from "./mapping.js";
 
 /** A station is a primary location whose operational point has one of these
- *  era:opType codes: ERA's "station" (op-types/10). Small stations (20),
- *  passenger terminals (30) and passenger stops (70) are other types. */
-export const STATION_OP_TYPE_CODES: readonly string[] = ["10"];
+ *  era:opType codes, all of which serve passengers: station (10), small
+ *  station (20) and passenger stop (70). Passenger terminals (30) are left
+ *  out; freight, junction and technical types are not stations. */
+export const STATION_OP_TYPE_CODES: readonly string[] = ["10", "20", "70"];
+
+const typeList = (codes: readonly string[]) => {
+  const named = codes.map((c) => `“${opTypeLabelOfCode(c) ?? c}” (op-types/${c})`);
+  return named.length > 1 ? `${named.slice(0, -1).join(", ")} or ${named[named.length - 1]}` : named[0];
+};
 
 export const WIFI_SUMMARY_DEFINITION =
-  "A station is a RINF primary location whose operational point has era:opType “station” (ERA concept " +
-  "op-types/10). Its Wi-Fi is the Wi-Fi access (P2848) of the Wikidata item matched to it on the map's keys: " +
+  `A station is a RINF primary location whose operational point has era:opType ${typeList(STATION_OP_TYPE_CODES)}. ` +
+  "Its Wi-Fi is the Wi-Fi access (P2848) of the Wikidata item matched to it on the map's keys: " +
   "primary location code (P12783), then ERA ID (P11631, the uopid), then UIC station code (P722) within 1 km. " +
   "Wikidata values: gratis → free, paid → paid, yes → available (cost not stated), no → none. The Wikidata " +
   "columns count items in the country (P17) that record Wi-Fi and carry one of those keys, matched or not.";
@@ -83,7 +89,7 @@ const MATCH_RANK = { "primary-location-code": 3, "era-id": 2, "uic-station-code"
 /** RINF stations (distinct primary location codes) by the Wi-Fi of the item
  *  each one matches, from buildPrimaryLocationsByCodeQuery's rows (one per
  *  primary location and operational point). A primary location is a station
- *  when a point referencing it is typed "station"; its match is the
+ *  when a point referencing it has a station type; its match is the
  *  strongest over those station points (its own code is the same for all;
  *  ERA IDs belong to points).
  *
