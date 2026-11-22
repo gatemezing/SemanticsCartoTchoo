@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import {
   INFRASTRUCTURE_KINDS,
   type InfrastructureCollection,
@@ -7,6 +7,8 @@ import {
   PrimaryLocationsCollection,
   SectionOfLineCollection,
   TunnelsCollection,
+  type OperationalPointWikidataMap,
+  type WifiCounts,
 } from "@carto-rinf/shared-types";
 import {
   LEGEND_ENTRIES,
@@ -15,6 +17,7 @@ import {
   presentOpTypeKeys,
 } from "../map/opTypeColors";
 import { INFRA_LABELS, INFRA_SHAPES, SHAPE_PATHS } from "../map/infrastructureMarkers";
+import { tallyWifi, WIFI_KEYS, WIFI_LABELS, type WifiKey } from "../map/wifi";
 
 /** The marker shape of an infrastructure layer, as drawn on the map. */
 export function InfraShape({ kind, size = 12 }: { kind: InfrastructureKind; size?: number }) {
@@ -46,6 +49,19 @@ interface Props {
   infrastructure: Partial<Record<InfrastructureKind, InfrastructureCollection>>;
   /** Sections are explained by the colour legend instead while coloured. */
   sectionsColoured: boolean;
+  wifi: WifiLegendProps;
+}
+
+export interface WifiLegendProps {
+  stations: OperationalPointWikidataMap | undefined;
+  status: "loading" | "error" | "ready";
+  filter: WifiKey | null;
+  onFilter: (filter: WifiKey | null) => void;
+  /** This country's RINF stations by Wi-Fi, from the Europe-wide count. */
+  countryStations: WifiCounts | undefined;
+  europeFree: number | undefined;
+  countryLabel: string;
+  onOpenEurope: () => void;
 }
 
 /** Every color here is always paired with this visible text label — colors
@@ -64,6 +80,7 @@ export function Legend({
   onToggleOpTypeKeys,
   infrastructure,
   sectionsColoured,
+  wifi,
 }: Props) {
   const [collapsed, setCollapsed] = useState(readCollapsedPreference);
 
@@ -235,6 +252,8 @@ export function Legend({
             </button>
           )}
 
+          <WifiSection points={operationalPoints} {...wifi} />
+
           {(hasSectionsOfLine || hasTunnels || hasPrimaryLocations || infraShown.length > 0) && (
             <div style={{ fontWeight: 700, marginTop: 8, marginBottom: 4 }}>
               Lines &amp; markers
@@ -325,6 +344,122 @@ export function Legend({
           ))}
         </div>
       )}
+    </div>
+  );
+}
+
+/** The Wi-Fi filter: one row per Wi-Fi access recorded in Wikidata, with the
+ *  number of this country's operational points; clicking a row shows only
+ *  those points, clicking it again shows all. Below, the station count
+ *  answers "how many stations have free Wi-Fi", here and Europe-wide. */
+function WifiSection({
+  points,
+  stations,
+  status,
+  filter,
+  onFilter,
+  countryStations,
+  europeFree,
+  countryLabel,
+  onOpenEurope,
+}: WifiLegendProps & { points: OperationalPointsCollection }) {
+  const tally = useMemo(() => tallyWifi(points, stations), [points, stations]);
+  // Free Wi-Fi is always listed (a zero is an answer); other rows only
+  // when some point has them, and the active filter always.
+  const keys = WIFI_KEYS.filter((k) => k === "free" || k === filter || tally.counts[k] > 0);
+  return (
+    <div style={{ marginTop: 8 }}>
+      <div style={{ fontWeight: 700, marginBottom: 2 }}>Wi-Fi in Wikidata</div>
+      {status === "loading" && (
+        <div style={{ fontSize: 10.5, color: "var(--text-subtle)" }}>Matching Wikidata stations…</div>
+      )}
+      {status === "error" && (
+        <div style={{ fontSize: 10.5, color: "var(--text-subtle)" }}>Wikidata unavailable: no Wi-Fi filter.</div>
+      )}
+      {status === "ready" && (
+        <>
+          <div style={{ fontSize: 10.5, color: "var(--text-subtle)", marginBottom: 4 }}>
+            Points matched to Wikidata: {tally.matched.toLocaleString()} of {tally.total.toLocaleString()}. Click
+            a row to show only those.
+          </div>
+          {keys.map((key) => {
+            const active = filter === key;
+            return (
+              <button
+                key={key}
+                aria-pressed={active}
+                onClick={() => onFilter(active ? null : key)}
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  gap: 6,
+                  marginTop: 2,
+                  width: "100%",
+                  boxSizing: "border-box",
+                  padding: "2px 4px",
+                  border: "none",
+                  background: active ? "var(--divider)" : "none",
+                  borderRadius: 4,
+                  cursor: "pointer",
+                  fontSize: 12,
+                  fontFamily: "inherit",
+                  color: "inherit",
+                  fontWeight: active ? 700 : 400,
+                  textAlign: "left",
+                  opacity: filter && !active ? 0.55 : 1,
+                }}
+              >
+                <span>{WIFI_LABELS[key]}</span>
+                <span style={{ color: "var(--text-muted)", fontVariantNumeric: "tabular-nums" }}>
+                  {tally.counts[key].toLocaleString()}
+                </span>
+              </button>
+            );
+          })}
+          {filter && (
+            <button
+              onClick={() => onFilter(null)}
+              style={{
+                marginTop: 2,
+                padding: "2px 4px",
+                border: "none",
+                background: "none",
+                cursor: "pointer",
+                fontSize: 11,
+                fontFamily: "inherit",
+                color: "var(--link)",
+              }}
+            >
+              Show all points
+            </button>
+          )}
+        </>
+      )}
+      <div style={{ fontSize: 11, marginTop: 4 }}>
+        Stations with free Wi-Fi:{" "}
+        {countryStations ? (
+          <strong>
+            {countryStations.free.toLocaleString()} in {countryLabel}
+          </strong>
+        ) : (
+          "…"
+        )}
+        {" · "}
+        <button
+          onClick={onOpenEurope}
+          style={{
+            padding: 0,
+            border: "none",
+            background: "none",
+            cursor: "pointer",
+            fontSize: 11,
+            fontFamily: "inherit",
+            color: "var(--link)",
+          }}
+        >
+          {europeFree !== undefined ? `${europeFree.toLocaleString()} in Europe ›` : "Europe ›"}
+        </button>
+      </div>
     </div>
   );
 }

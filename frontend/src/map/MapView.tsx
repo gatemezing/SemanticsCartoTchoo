@@ -15,6 +15,7 @@ import {
   type InfrastructureCollection,
   type InfrastructureKind,
   type OperationalPointsCollection,
+  type OperationalPointWikidataMap,
   type PrimaryLocationsCollection,
   type SectionOfLineCollection,
   type TunnelsCollection,
@@ -40,6 +41,7 @@ import {
   opTypeColorMatchExpression,
   withOpTypeKey,
 } from "./opTypeColors";
+import { type WifiKey, wifiFilterExpression, withWifiKey } from "./wifi";
 import {
   buildInfrastructurePopup,
   buildPrimaryLocationPopup,
@@ -244,6 +246,24 @@ interface Props {
   flyTo: FlyToTarget | null;
   fitBounds: FitBoundsTarget | null;
   hiddenOpTypeKeys: Set<string>;
+  /** The Wikidata station matched to each point, for the Wi-Fi filter. */
+  opWikidata: OperationalPointWikidataMap | undefined;
+  /** Only points with this Wi-Fi in Wikidata; null shows all. */
+  wifiFilter: WifiKey | null;
+}
+
+/** Operational points as the map's source: the flat keys its colour and
+ *  filter expressions read. */
+function operationalPointsData(
+  points: OperationalPointsCollection,
+  opWikidata: OperationalPointWikidataMap | undefined,
+): GeoJSON.FeatureCollection {
+  return withOpTypeKey(withWifiKey(points, opWikidata));
+}
+
+/** Both point filters at once: the legend's hidden types and the Wi-Fi. */
+function operationalPointsFilter(hiddenOpTypeKeys: Set<string>, wifiFilter: WifiKey | null): unknown[] {
+  return ["all", hiddenOpTypeKeysFilterExpression(hiddenOpTypeKeys), wifiFilterExpression(wifiFilter)];
 }
 
 export function MapView({
@@ -265,6 +285,8 @@ export function MapView({
   flyTo,
   fitBounds,
   hiddenOpTypeKeys,
+  opWikidata,
+  wifiFilter,
 }: Props) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<MapLibreMap | null>(null);
@@ -305,6 +327,8 @@ export function MapView({
     primaryLocations,
     hiddenOpTypeKeys,
     highlightedSections,
+    opWikidata,
+    wifiFilter,
   });
   latestData.current = {
     operationalPoints,
@@ -312,6 +336,8 @@ export function MapView({
     primaryLocations,
     hiddenOpTypeKeys,
     highlightedSections,
+    opWikidata,
+    wifiFilter,
   };
 
   useEffect(() => {
@@ -467,13 +493,13 @@ export function MapView({
 
       map.addSource(OPERATIONAL_POINTS_SOURCE, {
         type: "geojson",
-        data: withOpTypeKey(latestData.current.operationalPoints),
+        data: operationalPointsData(latestData.current.operationalPoints, latestData.current.opWikidata),
       });
       map.addLayer({
         id: "operational-points-layer",
         type: "circle",
         source: OPERATIONAL_POINTS_SOURCE,
-        filter: expr(hiddenOpTypeKeysFilterExpression(latestData.current.hiddenOpTypeKeys)),
+        filter: expr(operationalPointsFilter(latestData.current.hiddenOpTypeKeys, latestData.current.wifiFilter)),
         paint: {
           "circle-radius": ["interpolate", ["linear"], ["zoom"], 5, 2, 12, 6],
           "circle-color": expr(opTypeColorMatchExpression()),
@@ -600,8 +626,8 @@ export function MapView({
     const source = mapRef.current?.getSource(OPERATIONAL_POINTS_SOURCE) as
       | GeoJSONSource
       | undefined;
-    source?.setData(withOpTypeKey(operationalPoints));
-  }, [operationalPoints]);
+    source?.setData(operationalPointsData(operationalPoints, opWikidata));
+  }, [operationalPoints, opWikidata]);
 
   useEffect(() => {
     const source = mapRef.current?.getSource(SECTIONS_OF_LINE_SOURCE) as
@@ -669,10 +695,10 @@ export function MapView({
     if (!mapRef.current?.getLayer("operational-points-layer")) return;
     mapRef.current.setFilter(
       "operational-points-layer",
-      expr(hiddenOpTypeKeysFilterExpression(hiddenOpTypeKeys)),
+      expr(operationalPointsFilter(hiddenOpTypeKeys, wifiFilter)),
     );
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [hiddenOpTypeKeys]);
+  }, [hiddenOpTypeKeys, wifiFilter]);
 
   return <div ref={containerRef} style={{ position: "absolute", inset: 0 }} />;
 }

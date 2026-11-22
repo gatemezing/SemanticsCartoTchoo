@@ -11,10 +11,12 @@ import type {
   TrackParameterId,
   OperationalPointDetail,
   OperationalPointsCollection,
+  OperationalPointWikidataMap,
   PrimaryLocationsCollection,
   RinfDataset,
   SectionOfLineCollection,
   TunnelsCollection,
+  WifiSummary,
 } from "@carto-rinf/shared-types";
 
 /** Empty by default: same-origin relative `/api/...` calls, which is what
@@ -70,6 +72,16 @@ export function fetchPrimaryLocations(
   country: string,
 ): Promise<PrimaryLocationsCollection> {
   return getEnvelope(`/api/primary-locations?country=${country}`);
+}
+
+/** The Wikidata station matched to each operational point, by uopid. */
+export function fetchOperationalPointWikidata(country: string): Promise<OperationalPointWikidataMap> {
+  return getEnvelope(`/api/wikidata/stations?country=${country}`);
+}
+
+/** Europe-wide: RINF stations by the Wi-Fi recorded for them in Wikidata. */
+export function fetchWifiSummary(): Promise<WifiSummary> {
+  return getEnvelope("/api/wikidata/wifi");
 }
 
 export function fetchOperationalPointDetail(

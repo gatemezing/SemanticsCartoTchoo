@@ -67,6 +67,27 @@ test.describe("map", () => {
     await expect(opRecord).toHaveAttribute("href", /^https:\/\/rinf\.data\.era\.europa\.eu\/describe#http%3A%2F%2Fdata\.europa\.eu%2F949%2F/);
   });
 
+  test("the Wi-Fi filter keeps points with free Wi-Fi, and the Europe count answers the question", async ({ page, isMobile }) => {
+    test.skip(isMobile, "legend checked on desktop");
+    await page.goto("/LU/49.50000,5.95000,11.00/");
+    // Belval-Université is the one Luxembourg point whose Wikidata station
+    // records free Wi-Fi (fixture recorded live, 2026-11-22).
+    const freeRow = page.getByRole("button", { name: /^Free Wi-Fi\s*1$/ });
+    await expect(freeRow).toBeVisible();
+    await expect(page.getByText("Points matched to Wikidata: 71 of 99", { exact: false })).toBeVisible();
+    await freeRow.click();
+    await expect(freeRow).toHaveAttribute("aria-pressed", "true");
+    await expect(page).toHaveURL(/[?&]wifi=free/);
+    await page.reload();
+    await expect(page.getByRole("button", { name: /^Free Wi-Fi\s*1$/ })).toHaveAttribute("aria-pressed", "true");
+
+    // It isn't typed "station" in RINF, so Luxembourg counts no station.
+    await expect(page.getByText("Stations with free Wi-Fi: 0 in Luxembourg", { exact: false })).toBeVisible();
+    await page.getByRole("button", { name: "114 in Europe ›" }).click();
+    await expect(page.getByText("114 RINF stations")).toBeVisible();
+    await expect(page.getByRole("cell", { name: "France" })).toBeVisible();
+  });
+
   test("the Layers menu says why primary locations aren't visible yet", async ({ page, isMobile }) => {
     test.skip(isMobile, "toolbar menus checked on desktop");
     await page.goto("/LU/49.62000,6.10000,6.00/");

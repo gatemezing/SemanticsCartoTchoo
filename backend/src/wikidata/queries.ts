@@ -88,3 +88,19 @@ export function buildStructuresQuery(kind: StructureKind, countryQid: string): s
   }
 }`;
 }
+
+/** Wikidata items in the RINF countries (P17) that record Wi-Fi access
+ *  (P2848) and carry a key the map matches stations on: primary location
+ *  code, ERA ID or UIC station code. One query for all countries, because
+ *  the query service rate-limits hard; the RINF side is then fetched for
+ *  just these codes (buildPrimaryLocationsByCodeQuery). P2848 alone would
+ *  also count about 15,000 libraries and museums (measured 2026-11). */
+export function buildWifiStationsQuery(countryQids: readonly string[]): string {
+  for (const qid of countryQids) assertSafe(qid, /^Q[1-9][0-9]*$/, "Wikidata QID");
+  return `SELECT ?station ?country ?wifi ?plc ?eraId ?uic ?coord WHERE {
+  VALUES ?country { ${countryQids.map((q) => `wd:${q}`).join(" ")} }
+  ?station wdt:P17 ?country ; wdt:P2848 ?wifi .
+  { ?station wdt:P12783 ?plc } UNION { ?station wdt:P11631 ?eraId } UNION { ?station wdt:P722 ?uic }
+  OPTIONAL { ?station wdt:P625 ?coord }
+}`;
+}

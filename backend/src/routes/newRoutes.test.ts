@@ -9,6 +9,7 @@ test("new routes validate their input with 400s", async () => {
   const cases: [string, RegExp][] = [
     ["/api/infrastructure/tunnels?country=AT", /Unknown infrastructure kind/],
     ["/api/infrastructure/switches?country=XX", /Unknown country code/],
+    ["/api/wikidata/stations?country=XX", /Unknown country code/],
     ["/api/section-parameters?country=FR&param=voltage", /must be one of/],
     ["/api/section-parameters?country=FR", /must be one of/],
     ["/api/sections-of-line/detail", /Missing \?iri=/],

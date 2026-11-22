@@ -1,14 +1,18 @@
 import { datasetCache } from "../cache/ttlCache.js";
 import { WIKIDATA_CACHE_TTL_MS } from "../config.js";
-import { type CountryInfo, uopidPrefixOf } from "../countries.js";
+import type { WifiSummary } from "@carto-rinf/shared-types";
+import { COUNTRIES, type CountryInfo, uopidPrefixOf } from "../countries.js";
 import { runWikidataSparqlSelect, WikidataQueryError } from "./client.js";
 import {
   EMPTY_WIKIDATA_INDEX,
   mapWikidataStations,
   type WikidataStationIndex,
 } from "./mapping.js";
-import { buildStationsQuery, buildStructuresQuery, type StructureKind } from "./queries.js";
+import { buildStationsQuery, buildStructuresQuery, buildWifiStationsQuery, type StructureKind } from "./queries.js";
 import { mapWikidataStructures, type StructureCandidate } from "./structures.js";
+import { buildWifiSummary, countStationsByWifi, lookupKeys, partitionWifiStations } from "./wifiSummary.js";
+import { runSparqlSelect, type SparqlJsonResults } from "../sparql/client.js";
+import { buildPrimaryLocationsByCodeQuery } from "../sparql/queries.js";
 
 /** After a failure, Wikidata isn't asked again for this long: its query
  *  service rate-limits hard, and retrying on every request would make that
@@ -63,4 +67,39 @@ export function getWikidataStructures(kind: StructureKind, country: CountryInfo)
     async () => mapWikidataStructures(await runWikidataSparqlSelect(buildStructuresQuery(kind, country.wikidataQid))),
     NO_STRUCTURES,
   );
+}
+
+/** Wikidata couldn't be reached for the Wi-Fi count: a count of zero would
+ *  be a wrong answer, so the route says so instead (503). */
+export class WikidataUnavailableError extends Error {}
+
+/** How many RINF stations, per country, are matched to a Wikidata item that
+ *  records free (or paid, or no) Wi-Fi. One Wikidata query for every
+ *  country (its rate limit makes one per country slow), then one small RINF
+ *  query per country that has any Wi-Fi item, for just those codes. Cached
+ *  with the RINF layers; the Wikidata answer is cached on its own, with the
+ *  same retry window after a failure as enrichment. */
+export function getWifiSummary(): Promise<WifiSummary> {
+  return datasetCache.getOrLoad("wifi-summary", async () => {
+    const query = buildWifiStationsQuery(COUNTRIES.map((c) => c.wikidataQid));
+    const results = await fromWikidata<SparqlJsonResults | null>(
+      "wikidata-wifi-stations",
+      "Wi-Fi stations",
+      () => runWikidataSparqlSelect(query),
+      null,
+    );
+    if (!results) throw new WikidataUnavailableError("Wikidata's query service didn't answer");
+    const partitions = partitionWifiStations(results, COUNTRIES);
+    const perCountry = await Promise.all(
+      COUNTRIES.map(async (country) => {
+        const part = partitions.get(country.code);
+        if (!part) return { country, stations: new Map(), wikidata: new Map() };
+        const { plCodes, uopids } = lookupKeys(part.index);
+        const rinfQuery = buildPrimaryLocationsByCodeQuery(country.code, plCodes, uopids);
+        const stations = rinfQuery ? countStationsByWifi(await runSparqlSelect(rinfQuery), part.index) : new Map();
+        return { country, stations, wikidata: part.wikidata };
+      }),
+    );
+    return buildWifiSummary(perCountry, query, new Date().toISOString());
+  });
 }
