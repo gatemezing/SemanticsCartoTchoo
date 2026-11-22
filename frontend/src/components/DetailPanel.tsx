@@ -8,7 +8,7 @@ import type {
 import { fetchOperationalPointDetail, fetchSectionDetail } from "../api/client";
 import { PARAMETER_LABELS, parameterValueText } from "../map/dataColors";
 import { compactIri } from "../rdf/prefixes";
-import { safeHref } from "../security/safeHref";
+import { rinfRecordUrl } from "../rdf/rinfRecord";
 import { DescribeView } from "./DescribeView";
 import {
   describeFieldValue,
@@ -146,19 +146,28 @@ function OperationalPointBody({ uopid }: { uopid: string }) {
             )}
           />
 
-          {safeHref(data.rinfUri) && (
-            <a
-              href={safeHref(data.rinfUri)}
-              target="_blank"
-              rel="noopener noreferrer"
-              style={{ display: "inline-block", marginTop: 8, fontSize: 13 }}
-            >
-              View RINF record →
-            </a>
-          )}
+          <RinfRecordLink iri={data.rinfUri} />
         </>
       )}
     </>
+  );
+}
+
+/** The resource on ERA's Describe page (rinf.data.era.europa.eu), with its
+ *  IRI on hover. Nothing for an IRI that isn't http(s). */
+function RinfRecordLink({ iri }: { iri: string }) {
+  const href = rinfRecordUrl(iri);
+  if (!href) return null;
+  return (
+    <a
+      href={href}
+      title={iri}
+      target="_blank"
+      rel="noopener noreferrer"
+      style={{ display: "inline-block", marginTop: 8, fontSize: 13 }}
+    >
+      View RINF record →
+    </a>
   );
 }
 
@@ -257,16 +266,7 @@ function SectionProperties({
           muted={!data.parameters[param]}
         />
       ))}
-      {safeHref(data.rinfUri) && (
-        <a
-          href={safeHref(data.rinfUri)}
-          target="_blank"
-          rel="noopener noreferrer"
-          style={{ display: "inline-block", marginTop: 8, fontSize: 13 }}
-        >
-          View RINF record →
-        </a>
-      )}
+      <RinfRecordLink iri={data.rinfUri} />
     </>
   );
 }

@@ -14,6 +14,7 @@ import {
   linkFieldValueLabel,
 } from "../components/fieldValueText";
 import { compactIri } from "../rdf/prefixes";
+import { rinfRecordUrl } from "../rdf/rinfRecord";
 import { safeHref } from "../security/safeHref";
 
 function row(label: string, valueText: string, isMuted: boolean): HTMLElement {
@@ -44,6 +45,14 @@ function link(href: string, text: string): HTMLElement {
   a.textContent = text;
   a.style.display = "block";
   a.style.marginTop = "6px";
+  return a;
+}
+
+/** "View RINF record": the resource on ERA's Describe page, with its IRI
+ *  on hover. Nothing for an IRI that isn't http(s). */
+function recordLink(iri: string, text: string): HTMLElement {
+  const a = link(rinfRecordUrl(iri) ?? "", text);
+  if (a instanceof HTMLAnchorElement) a.title = iri;
   return a;
 }
 
@@ -94,7 +103,7 @@ export function buildTunnelPopup(
     row("Length", lengthText, props.lengthMetres.status !== "value"),
   );
 
-  container.appendChild(link(props.rinfUri, "View RINF record →"));
+  container.appendChild(recordLink(props.rinfUri, "View RINF record →"));
   container.appendChild(exploreButton(() => onExplore(props.rinfUri)));
   if (props.wikidata) container.appendChild(buildStructureSection(props.wikidata));
   return container;
@@ -274,9 +283,9 @@ export function buildPrimaryLocationPopup(
     );
   }
 
-  container.appendChild(link(props.rinfUri, "View RINF record →"));
+  container.appendChild(recordLink(props.rinfUri, "View RINF record →"));
   container.appendChild(
-    link(props.operationalPointRinfUri, "View operational point's RINF record →"),
+    recordLink(props.operationalPointRinfUri, "View operational point's RINF record →"),
   );
   container.appendChild(exploreButton(() => onExplore(props.rinfUri)));
 
@@ -316,7 +325,7 @@ export function buildInfrastructurePopup(
     const subtype = parseMaybeJson<FieldValue<RinfLink>>(rawProperties.subtype);
     container.appendChild(row("Type", linkFieldValueLabel(subtype), subtype.status !== "value"));
   }
-  container.appendChild(link(rinfUri, "View RINF record →"));
+  container.appendChild(recordLink(rinfUri, "View RINF record →"));
   container.appendChild(exploreButton(() => onExplore(rinfUri)));
   const wikidata = parseMaybeJson<WikidataStructureInfo | undefined>(rawProperties.wikidata);
   if (wikidata) container.appendChild(buildStructureSection(wikidata));

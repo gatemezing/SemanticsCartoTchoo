@@ -57,6 +57,14 @@ test.describe("map", () => {
     const entity = page.getByRole("link", { name: "wd:Q2609517" });
     await expect(entity).toHaveAttribute("href", "http://www.wikidata.org/entity/Q2609517");
     await expect(entity).toHaveAttribute("title", "http://www.wikidata.org/entity/Q2609517");
+
+    // "View RINF record" opens ERA's Describe page, with the IRI encoded in the fragment.
+    const record = page.getByRole("link", { name: "View RINF record →" });
+    const iri = await record.getAttribute("title");
+    expect(iri).toMatch(/^http:\/\/data\.europa\.eu\/949\//);
+    await expect(record).toHaveAttribute("href", `https://rinf.data.era.europa.eu/describe#${encodeURIComponent(iri!)}`);
+    const opRecord = page.getByRole("link", { name: "View operational point's RINF record →" });
+    await expect(opRecord).toHaveAttribute("href", /^https:\/\/rinf\.data\.era\.europa\.eu\/describe#http%3A%2F%2Fdata\.europa\.eu%2F949%2F/);
   });
 
   test("the Layers menu says why primary locations aren't visible yet", async ({ page, isMobile }) => {
@@ -82,6 +90,9 @@ test.describe("section of line", () => {
     await expect(page.getByText("100 km/h")).toBeVisible();
     await expect(page.getByText("AC 25kV-50Hz")).toBeVisible();
     await expect(page.getByText("Luxembourg - Berchem - Oetrange")).toBeVisible();
+    const record = page.getByRole("link", { name: "View RINF record →" });
+    await expect(record).toHaveAttribute("href", `https://rinf.data.era.europa.eu/describe#${encodeURIComponent(SECTION_IRI)}`);
+    await expect(record).toHaveAttribute("title", SECTION_IRI);
 
     await page.getByRole("tab", { name: "Describe" }).click();
     await expect(page.getByText("Length of section of line", { exact: false })).toBeVisible();
