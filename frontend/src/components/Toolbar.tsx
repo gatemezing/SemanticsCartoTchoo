@@ -25,11 +25,14 @@ export interface ExportAction {
 
 /** Per opt-in layer: undefined = not loaded yet, a number = features in
  *  this country, "error" = the layer failed. */
-export type InfrastructureStatus = Partial<Record<InfrastructureKind, number | "loading" | "error">>;
+export type LayerStatus = number | "loading" | "error";
+export type InfrastructureStatus = Partial<Record<InfrastructureKind, LayerStatus>>;
 
 interface Props {
   hiddenLayers: readonly LayerId[];
   onToggleLayer: (layer: LayerId) => void;
+  /** Muted text after a layer's checkbox (e.g. "loading…", a count). */
+  layerNotes: Partial<Record<LayerId, string>>;
   shownInfrastructure: readonly InfrastructureKind[];
   infrastructureStatus: InfrastructureStatus;
   onToggleInfrastructure: (kind: InfrastructureKind) => void;
@@ -122,7 +125,7 @@ function MenuButton({
   );
 }
 
-function statusText(status: InfrastructureStatus[InfrastructureKind], country: string): string {
+export function statusText(status: LayerStatus | undefined, country: string): string {
   if (status === undefined) return "";
   if (status === "loading") return "loading…";
   if (status === "error") return "unavailable";
@@ -142,6 +145,9 @@ export function Toolbar(props: Props) {
         <label key={id} style={rowStyle}>
           <input type="checkbox" checked={!props.hiddenLayers.includes(id)} onChange={() => props.onToggleLayer(id)} />
           {LAYER_LABELS[id]}
+          {props.layerNotes[id] && (
+            <span style={{ color: "var(--text-muted)", fontSize: 11 }}>{props.layerNotes[id]}</span>
+          )}
         </label>
       ))}
       <div style={groupTitle}>More infrastructure</div>

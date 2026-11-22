@@ -5,10 +5,11 @@ import type {
 } from "@carto-rinf/shared-types";
 import { datasetCache } from "../cache/ttlCache.js";
 import { replyWithError } from "../errors.js";
-import { mapPrimaryLocations } from "../mapping/primaryLocations.js";
+import { enrichOnce } from "../cache/enrichOnce.js";
+import { enrichPrimaryLocations, mapPrimaryLocations } from "../mapping/primaryLocations.js";
 import { runSparqlSelect } from "../sparql/client.js";
 import { buildPrimaryLocationsQuery } from "../sparql/queries.js";
-import { getWikidataStationsByPlc } from "../wikidata/service.js";
+import { getWikidataStations } from "../wikidata/service.js";
 import { resolveCountry } from "./resolveCountry.js";
 
 export function registerPrimaryLocationsRoute(app: FastifyInstance): void {
@@ -17,19 +18,16 @@ export function registerPrimaryLocationsRoute(app: FastifyInstance): void {
     if (!country) return reply;
 
     try {
-      const data = await datasetCache.getOrLoad<PrimaryLocationsCollection>(
-        `primary-locations:${country.code}`,
-        async () => {
-          // Wikidata enrichment has its own, longer-lived cache (see
-          // getWikidataStationsByPlc) and never fails this request — it
-          // degrades to "no enrichment" instead.
-          const [rinfResults, wikidataByPlc] = await Promise.all([
-            runSparqlSelect(buildPrimaryLocationsQuery(country.code)),
-            getWikidataStationsByPlc(country),
-          ]);
-          return mapPrimaryLocations(rinfResults, wikidataByPlc);
-        },
-      );
+      // RINF and Wikidata are cached separately, and joined per request
+      // (once per pair of cache entries): a Wikidata failure then only
+      // costs enrichment until it's retried, never for the RINF TTL.
+      const [rinf, wikidata] = await Promise.all([
+        datasetCache.getOrLoad<PrimaryLocationsCollection>(`primary-locations:${country.code}`, async () =>
+          mapPrimaryLocations(await runSparqlSelect(buildPrimaryLocationsQuery(country.code))),
+        ),
+        getWikidataStations(country),
+      ]);
+      const data = enrichOnce(rinf, wikidata, enrichPrimaryLocations);
       const body: ApiEnvelope<PrimaryLocationsCollection> = {
         status: "ok",
         data,

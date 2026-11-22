@@ -7,25 +7,15 @@ import {
 } from "@carto-rinf/shared-types";
 import { datasetCache } from "../cache/ttlCache.js";
 import { BadRequestError, replyWithError } from "../errors.js";
-import { mapInfrastructure } from "../mapping/infrastructure.js";
+import { enrichOnce } from "../cache/enrichOnce.js";
+import { enrichBridges, mapInfrastructure } from "../mapping/infrastructure.js";
+import { getWikidataStructures } from "../wikidata/service.js";
 import { runSparqlSelect } from "../sparql/client.js";
-import {
-  buildInfrastructureQuery,
-  buildProviderGraphsQuery,
-} from "../sparql/infrastructureQueries.js";
+import { buildInfrastructureQuery } from "../sparql/infrastructureQueries.js";
+import { providerGraphsFor } from "./providerGraphs.js";
 import { resolveCountry } from "./resolveCountry.js";
 
 const EMPTY: InfrastructureCollection = { type: "FeatureCollection", features: [] };
-
-/** IRIs come back from upstream; only well-formed provider-graph IRIs are
- *  used (see buildInfrastructureQuery, which interpolates them). */
-function providerGraphsFor(countryCode: string): Promise<string[]> {
-  return datasetCache.getOrLoad(`provider-graphs:${countryCode}`, async () =>
-    (await runSparqlSelect(buildProviderGraphsQuery(countryCode))).results.bindings
-      .map((b) => b.g?.value ?? "")
-      .filter((g) => /^http:\/\/data\.europa\.eu\/949\/graph\/[A-Za-z0-9]{2,8}$/.test(g)),
-  );
-}
 
 export function registerInfrastructureRoute(app: FastifyInstance): void {
   app.get("/api/infrastructure/:kind", async (request, reply) => {
@@ -42,7 +32,7 @@ export function registerInfrastructureRoute(app: FastifyInstance): void {
     if (!country) return reply;
 
     try {
-      const data = await datasetCache.getOrLoad<InfrastructureCollection>(
+      const rinf = await datasetCache.getOrLoad<InfrastructureCollection>(
         `infrastructure:${kind}:${country.code}`,
         async () => {
           const graphs = await providerGraphsFor(country.code);
@@ -57,6 +47,12 @@ export function registerInfrastructureRoute(app: FastifyInstance): void {
           return collection;
         },
       );
+      // Only bridges have a Wikidata counterpart worth matching, and only
+      // when RINF has any (Wikidata isn't asked for an empty layer).
+      const data =
+        kind === "bridges" && rinf.features.length > 0
+          ? enrichOnce(rinf, await getWikidataStructures("bridge", country), enrichBridges)
+          : rinf;
       const body: ApiEnvelope<InfrastructureCollection> = { status: "ok", data };
       return body;
     } catch (err) {

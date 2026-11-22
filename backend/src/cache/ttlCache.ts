@@ -69,7 +69,8 @@ export class TtlCache {
  *  (Germany). DATASET_CACHE_KEYS_PER_COUNTRY counts the keys per country
  *  — keep it in step when adding a per-country endpoint. */
 export const DATASET_CACHE_KEYS_PER_COUNTRY =
-  5 /* op, sol, tunnels, primary locations, wikidata */ +
+  5 /* op, sol, tunnels, primary locations, wikidata stations */ +
+  2 /* wikidata tunnels, wikidata bridges */ +
   4 /* infrastructure layers */ +
   1 /* provider graphs */ +
   4 /* track parameters */ +

@@ -31,7 +31,7 @@ export function AboutDialog({ onClose }: { onClose: () => void }) {
           apply. This project is not affiliated with ERA.
         </li>
         <li>
-          <strong>Wikidata</strong> — station accessibility enrichment, CC0.
+          <strong>Wikidata</strong> — station, tunnel and bridge enrichment, CC0.
         </li>
         <li>
           <strong>Basemap</strong> — ©{" "}

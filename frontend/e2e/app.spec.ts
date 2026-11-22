@@ -19,6 +19,55 @@ test.describe("map", () => {
     await expect(page).toHaveURL(new RegExp(`sel=${sel(SECTION_IRI)}`));
   });
 
+  test("primary locations that arrive before the map has loaded are still drawn", async ({ page }) => {
+    // Basemap tiles are held, which delays MapLibre's load event. Primary
+    // locations are answered after the core layers, so they arrive after
+    // the map component exists but before it has loaded. In that window
+    // the layer used to be seeded empty and never filled.
+    const later = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+    await page.route(/tile\.openstreetmap\.org/, async (route) => {
+      await later(2500);
+      await route.fallback();
+    });
+    await page.route("**/api/primary-locations**", async (route) => {
+      await later(800);
+      await route.fallback();
+    });
+    // LU11210 is 1.3 km from any operational point, so a click there can
+    // only hit its ring.
+    await page.goto("/LU/50.10893,6.00560,14.00/");
+    await expect(page.getByText("Operational point type")).toBeVisible();
+    const box = (await page.locator("canvas").first().boundingBox())!;
+    await expect(async () => {
+      await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
+      await expect(page.getByText("Primary location LU11210")).toBeVisible({ timeout: 500 });
+    }).toPass({ timeout: 15_000 });
+  });
+
+  test("a primary location's Wikidata link is the entity IRI, shown as such", async ({ page }) => {
+    // LU11030 (Heisdorf) is 26 m from its operational point: at zoom 18
+    // a click on it hits only its ring.
+    await page.goto("/LU/49.67550,6.13931,18.00/");
+    await expect(page.getByText("Operational point type")).toBeVisible();
+    const box = (await page.locator("canvas").first().boundingBox())!;
+    await expect(async () => {
+      await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
+      await expect(page.getByText("Primary location LU11030")).toBeVisible({ timeout: 500 });
+    }).toPass({ timeout: 15_000 });
+    const entity = page.getByRole("link", { name: "wd:Q2609517" });
+    await expect(entity).toHaveAttribute("href", "http://www.wikidata.org/entity/Q2609517");
+    await expect(entity).toHaveAttribute("title", "http://www.wikidata.org/entity/Q2609517");
+  });
+
+  test("the Layers menu says why primary locations aren't visible yet", async ({ page, isMobile }) => {
+    test.skip(isMobile, "toolbar menus checked on desktop");
+    await page.goto("/LU/49.62000,6.10000,6.00/");
+    await page.getByRole("button", { name: "Layers" }).click();
+    const row = page.locator("label", { hasText: "Primary locations" });
+    await expect(row).toContainText("99 · zoom in to see");
+    await expect(page.locator("label", { hasText: "Tunnels" })).toContainText("22");
+  });
+
   test("legend tells real alignments from straight-line stand-ins", async ({ page, isMobile }) => {
     test.skip(isMobile, "legend detail checked on desktop");
     await page.goto("/LU/49.62000,6.10000,10.00/");

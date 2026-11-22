@@ -309,7 +309,7 @@ export function Legend({
                   flexShrink: 0,
                 }}
               />
-              <span>...with Wikidata accessibility info</span>
+              <span>...matched to a Wikidata station</span>
             </div>
           )}
           {infraShown.map((kind) => (
