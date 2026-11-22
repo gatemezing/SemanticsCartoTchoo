@@ -81,10 +81,10 @@ test.describe("map", () => {
     await page.reload();
     await expect(page.getByRole("button", { name: /^Free Wi-Fi\s*1$/ })).toHaveAttribute("aria-pressed", "true");
 
-    // It isn't typed "station" in RINF, so Luxembourg counts no station.
-    await expect(page.getByText("Stations with free Wi-Fi: 0 in Luxembourg", { exact: false })).toBeVisible();
-    await page.getByRole("button", { name: "114 in Europe ›" }).click();
-    await expect(page.getByText("114 RINF stations")).toBeVisible();
+    // A passenger stop in RINF, so it's also Luxembourg's one station.
+    await expect(page.getByText("Stations with free Wi-Fi: 1 in Luxembourg", { exact: false })).toBeVisible();
+    await page.getByRole("button", { name: "117 in Europe ›" }).click();
+    await expect(page.getByText("117 RINF stations")).toBeVisible();
     await expect(page.getByRole("cell", { name: "France" })).toBeVisible();
   });
 
