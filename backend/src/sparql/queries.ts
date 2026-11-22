@@ -1,4 +1,3 @@
-import { countryAuthorityUri } from "../config.js";
 import { countryOfUopid, getCountry, uopidPrefixOf } from "../countries.js";
 import { BadRequestError } from "../errors.js";
 
@@ -262,20 +261,41 @@ SELECT ?sol ?opStart ?opStartUopid ?opStartName ?opEnd ?opEndUopid ?opEndName ?w
 /** Tunnels for one country. Unlike sections of line, a tunnel's two-point
  *  LineString genuinely is its portal-to-portal geometry (not a stand-in
  *  for missing detail), so it's rendered as real geometry, not dashed.
- *  Takes the country code (not the authority URI directly) so it can also
- *  look up the right validity strategy — tunnels don't carry a uopid to
- *  derive that from the way other entities do. */
-export function buildTunnelsQuery(countryCode: string): string {
+ *
+ *  Scoped by the country's provider named graphs (`graphIris`), like the
+ *  other infrastructure layers, not by era:inCountry: measured live
+ *  2026-11, 5,700+ tunnels have none, so they never showed. That's all of
+ *  Spain's (3,152 in graph/0071), Sweden's (560), Ireland's (549),
+ *  Austria's (458) and Switzerland's (251). The DISTINCT subquery keeps a
+ *  tunnel that sits in two of a country's graphs from being drawn twice.
+ *
+ *  Takes the country code so it can also look up the right validity
+ *  strategy — tunnels don't carry a uopid to derive that from the way
+ *  other entities do. */
+export function buildTunnelsQuery(countryCode: string, graphIris: string[]): string {
   const country = getCountry(countryCode);
   if (!country) throw new Error(`Unknown country code: "${countryCode}"`);
+  for (const g of graphIris) assertSafeIri(g);
   return `PREFIX era: <${ERA}>
 PREFIX geo: <http://www.opengis.net/ont/geosparql#>
 ${TIME_PREFIX}
-SELECT ?t ?label ?labelNA ?length ?lengthNA ?wkt WHERE {
-  ?t a era:Tunnel ;
-     era:inCountry <${countryAuthorityUri(country.iso3)}> .
+SELECT ?t ?label ?labelNA ?length ?lengthNA ?wkt ?startWkt ?endWkt WHERE {
+  {
+    SELECT DISTINCT ?t WHERE {
+      VALUES ?g { ${graphIris.map((g) => `<${g}>`).join(" ")} }
+      GRAPH ?g { ?t a era:Tunnel . }
+    }
+  }
   ${validNow("?t", "T", country.validityStrategy ?? "range")}
-  ${geometryOf("?t", "era:Tunnel")}
+  OPTIONAL ${geometryOf("?t", "era:Tunnel")}
+  # Austria gives tunnels no geometry, only their two portals (219 of 458,
+  # measured 2026-11): drawn portal to portal.
+  OPTIONAL {
+    SELECT ?t (SAMPLE(?startX) AS ?startWkt) (SAMPLE(?endX) AS ?endWkt) WHERE {
+      ?t a era:Tunnel ; geo:startLocation/geo:asWKT ?startX ; geo:endLocation/geo:asWKT ?endX .
+    } GROUP BY ?t
+  }
+  FILTER(BOUND(?wkt) || BOUND(?startWkt))
   OPTIONAL { ?t era:tunnelIdentification ?label }
   OPTIONAL { ?t era:notApplicable era:tunnelIdentification . BIND(true AS ?labelNA) }
   OPTIONAL { ?t era:lengthOfTunnel ?length }
@@ -287,8 +307,14 @@ SELECT ?t ?label ?labelNA ?length ?lengthNA ?wkt WHERE {
  *  operational point's uopid/name/subject-URI so the frontend can always
  *  show which operational point a primary location belongs to. An
  *  operational point can have zero, one, or several — each becomes its own
- *  row/feature here. Only primary locations with their own geometry can be
- *  plotted, which the join below requires implicitly. */
+ *  row/feature here.
+ *
+ *  `?wkt` is the primary location's own geometry and `?opWkt` its
+ *  operational point's. Several providers give primary locations no
+ *  geometry of their own (measured live 2026-11: none of Switzerland's
+ *  3,310, Hungary's 1,808 or Sweden's 1,098, and 1 of Spain's 2,276).
+ *  Requiring one had left those layers empty. The mapper falls back to the
+ *  operational point's position and flags it. */
 export function buildPrimaryLocationsQuery(countryPrefix: string): string {
   assertSafeCountryPrefix(countryPrefix);
   // One correlated aggregate grouped per primary location, instead of
@@ -301,7 +327,8 @@ export function buildPrimaryLocationsQuery(countryPrefix: string): string {
 PREFIX geo: <http://www.opengis.net/ont/geosparql#>
 ${TIME_PREFIX}
 SELECT ?pl (SAMPLE(?opX) AS ?op) (SAMPLE(?opUopidX) AS ?opUopid) (SAMPLE(?opNameX) AS ?opName)
-       (SAMPLE(?plCodeX) AS ?plCode) (COALESCE(SAMPLE(?netWkt), SAMPLE(?directWkt)) AS ?wkt) WHERE {
+       (SAMPLE(?plCodeX) AS ?plCode) (COALESCE(SAMPLE(?netWkt), SAMPLE(?directWkt)) AS ?wkt)
+       (COALESCE(SAMPLE(?opNetWkt), SAMPLE(?opDirectWkt)) AS ?opWkt) WHERE {
   ?opX a era:OperationalPoint ;
        era:uopid ?opUopidX ;
        era:primaryLocation ?pl .
@@ -310,7 +337,9 @@ SELECT ?pl (SAMPLE(?opX) AS ?op) (SAMPLE(?opUopidX) AS ?opUopid) (SAMPLE(?opName
   ?pl era:primaryLocationCode ?plCodeX .
   OPTIONAL { ?pl era:netReference/geo:hasGeometry/geo:asWKT ?netWkt . }
   OPTIONAL { ?pl geo:hasGeometry/geo:asWKT ?directWkt . }
-  FILTER(BOUND(?netWkt) || BOUND(?directWkt))
+  OPTIONAL { ?opX era:netReference/geo:hasGeometry/geo:asWKT ?opNetWkt . }
+  OPTIONAL { ?opX geo:hasGeometry/geo:asWKT ?opDirectWkt . }
+  FILTER(BOUND(?netWkt) || BOUND(?directWkt) || BOUND(?opNetWkt) || BOUND(?opDirectWkt))
   OPTIONAL { ?opX era:opName ?opNameX . FILTER(LANG(?opNameX) = "en") }
 } GROUP BY ?pl`;
 }

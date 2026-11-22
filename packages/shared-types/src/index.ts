@@ -53,6 +53,12 @@ export interface CountryInfo {
    *  RINF start with "GR" (confirmed live 2026-10: 253 uopids, none with
    *  "EL" — which had left the Greek map empty). */
   uopidPrefix?: string;
+  /** The first two digits of this country's UIC station codes (Wikidata
+   *  P722), used to match Wikidata stations that have no primary location
+   *  code. Verified live 2026-11: one prefix covers 98–100% of each
+   *  country's Wikidata station codes. Absent for Liechtenstein, whose
+   *  stations carry Austria's 81. */
+  uicCountryCode?: string;
 }
 
 export interface OperationalPointProperties {
@@ -109,6 +115,42 @@ export interface TunnelProperties {
   rinfUri: string;
   name: FieldValue<string>;
   lengthMetres: FieldValue<number>;
+  /** The Wikidata railway tunnel at this position, when there is one. */
+  wikidata?: WikidataStructureInfo;
+}
+
+/** A Wikidata railway tunnel (Q1311958) or bridge (Q1210334) matched to a
+ *  RINF one. They share no identifier, so the match is by position: the
+ *  item's coordinates (P625) within a few hundred metres of RINF's
+ *  geometry, and, when both give a length, lengths within a factor of 2.
+ *  Every fact is optional, absent when Wikidata doesn't have it. Lengths
+ *  are normalised to metres by Wikidata itself. */
+export interface WikidataStructureInfo {
+  qid: string;
+  /** The canonical entity IRI, http://www.wikidata.org/entity/Q… */
+  sourceUrl: string;
+  label?: string;
+  lengthMetres?: number;
+  heightMetres?: number;
+  /** Number of spans (P1314). */
+  spans?: number;
+  longestSpanMetres?: number;
+  /** Year of official opening (P1619), else of inception (P571). */
+  opened?: string;
+  /** What it carries (P2505), usually the railway line. */
+  carries?: string[];
+  /** What it crosses (P177): a river, road, mountain… */
+  crosses?: string[];
+  operator?: string;
+  heritage?: string;
+  material?: string;
+  /** The image's Commons IRI as Wikidata's RDF gives it
+   *  (http://commons.wikimedia.org/wiki/Special:FilePath/…). Linked, not
+   *  embedded: each file has its own licence, shown on Commons. */
+  image?: string;
+  matchedBy: "position";
+  /** Metres between the item's coordinates and RINF's geometry. */
+  distanceMetres: number;
 }
 
 export type TunnelFeature = GeoJSON.Feature<
@@ -134,9 +176,28 @@ export interface WikidataStationInfo {
   /** e.g. "wheelchair accessible", "wheelchair accessible with help",
    *  "wheelchair inaccessible" (wdt:P2846, label-resolved). */
   wheelchairAccessibility?: string;
-  /** e.g. "gratis" (wdt:P2848, label-resolved). */
-  wifi?: string;
+  /** Wi-Fi access (P2848), from its value item: Q1543615 "gratis" → "free",
+   *  Q24202480 → "paid", Q6452715 "yes" → "available" (cost not stated),
+   *  Q1814990 "no" → "none". Measured 2026-11 on stations with a PLC or
+   *  UIC code: 828 none, 184 free, 15 available, 1 paid. */
+  wifi?: "free" | "paid" | "available" | "none";
   platformCount?: number;
+  /** How the station was matched, strongest key first:
+   *  - "primary-location-code": Wikidata's PLC (P12783) equals the code.
+   *  - "era-id": Wikidata's ERA ID (P11631), which is a uopid, equals the
+   *    operational point's.
+   *  - "uic-station-code": a UIC station code (P722) whose station number
+   *    equals the code's. In some countries (CH, HU, AT, CZ, IT, ES…) the
+   *    code is the country prefix plus that number, but not in all (DE, FR,
+   *    BE, DK), so this match is accepted only when Wikidata's coordinates
+   *    are within 1 km of RINF's position. */
+  matchedBy: "primary-location-code" | "era-id" | "uic-station-code";
+  /** The Wikidata value matched on, e.g. "CH07000", "HU5507013" or
+   *  "8507000". */
+  matchedValue: string;
+  /** The item's canonical entity IRI (`http://www.wikidata.org/entity/Q…`),
+   *  as Wikidata's query service returns it. It's not the /wiki/ page URL.
+   *  Wikidata redirects a browser that follows the IRI to that page. */
   sourceUrl: string;
 }
 
@@ -151,6 +212,10 @@ export interface PrimaryLocationProperties {
   operationalPointUopid: string;
   operationalPointName: FieldValue<string>;
   operationalPointRinfUri: string;
+  /** Where the point comes from. Several providers (CH, HU, SE, ES) give
+   *  primary locations no geometry of their own, so these are placed at
+   *  their operational point, and the popup says so. */
+  positionFrom: "primary-location" | "operational-point";
   /** Present only when era:primaryLocationCode has a matching Wikidata
    *  station (joined on Wikidata's PLC property, wdt:P12783) — absent, not
    *  "not available", when there's no match (see WikidataStationInfo). */
@@ -252,6 +317,8 @@ export interface InfrastructureProperties {
   label: FieldValue<string>;
   /** Class-specific type, where RINF has one (era:signalType). */
   subtype?: FieldValue<RinfLink>;
+  /** Bridges only: the Wikidata railway bridge at this position. */
+  wikidata?: WikidataStructureInfo;
 }
 
 /** Geometry varies by provider: points, lines (bridges), polygons

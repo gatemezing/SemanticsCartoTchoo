@@ -4,6 +4,7 @@ import type {
   InfrastructureProperties,
 } from "@carto-rinf/shared-types";
 import type { SparqlJsonResults } from "../sparql/client.js";
+import { matchStructure, STRUCTURE_MATCH_MAX_METRES, type StructureCandidate } from "../wikidata/structures.js";
 import { parseWkt } from "../wkt.js";
 import { linkFieldValue, literalFieldValue } from "./fieldValue.js";
 
@@ -37,4 +38,20 @@ export function mapInfrastructure(
     features.push({ type: "Feature", geometry, properties });
   }
   return { collection: { type: "FeatureCollection", features }, skipped };
+}
+
+/** Adds each bridge's Wikidata railway bridge, when one is close enough
+ *  (RINF bridges carry no length to compare). */
+export function enrichBridges(
+  collection: InfrastructureCollection,
+  candidates: readonly StructureCandidate[],
+): InfrastructureCollection {
+  if (candidates.length === 0) return collection;
+  return {
+    type: "FeatureCollection",
+    features: collection.features.map((f) => {
+      const wikidata = f.geometry && matchStructure(candidates, f.geometry, undefined, STRUCTURE_MATCH_MAX_METRES.bridge);
+      return wikidata ? { ...f, properties: { ...f.properties, wikidata } } : f;
+    }),
+  };
 }

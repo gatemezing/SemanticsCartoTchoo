@@ -6,6 +6,7 @@ import {
   buildOperationalPointDetailQuery,
   buildOperationalPointsQuery,
   buildPrimaryLocationsQuery,
+  buildTunnelsQuery,
   buildSectionsOfLineQuery,
 } from "./queries.js";
 
@@ -101,6 +102,26 @@ test("primary locations: one correlated aggregate per location", () => {
   assert.match(q, /GROUP BY \?pl$/);
   assert.doesNotMatch(q, /SELECT \?\w+ \(SAMPLE\(\?\w+\) AS \?\w+\) WHERE/); // no per-subject subqueries
   assert.match(q, /YEAR\(\?beginOp\) = YEAR\(NOW\(\)\)/); // Germany keeps annual-begin
+});
+
+test("tunnels are scoped by provider graphs, not era:inCountry", () => {
+  const q = buildTunnelsQuery("AT", ["http://data.europa.eu/949/graph/0081"]);
+  assert.match(q, /VALUES \?g \{ <http:\/\/data\.europa\.eu\/949\/graph\/0081> \}/);
+  assert.match(q, /SELECT DISTINCT \?t WHERE/);
+  assert.doesNotMatch(q, /era:inCountry/);
+  assert.match(q, /geo:startLocation\/geo:asWKT \?startX ; geo:endLocation\/geo:asWKT \?endX/);
+  assert.match(q, /FILTER\(BOUND\(\?wkt\) \|\| BOUND\(\?startWkt\)\)/);
+  assert.match(buildTunnelsQuery("DE", ["http://data.europa.eu/949/graph/0080"]), /YEAR\(\?beginT\) = YEAR\(NOW\(\)\)/);
+  assert.throws(() => buildTunnelsQuery("AT", ["http://x/> } DROP ALL #"]));
+});
+
+test("primary locations without their own geometry are kept, with their point's", () => {
+  const q = buildPrimaryLocationsQuery("CH");
+  assert.match(q, /AS \?opWkt\)/);
+  assert.match(q, /\?opX era:netReference\/geo:hasGeometry\/geo:asWKT \?opNetWkt/);
+  assert.match(q, /\?opX geo:hasGeometry\/geo:asWKT \?opDirectWkt/);
+  // Own geometry is no longer required on its own.
+  assert.doesNotMatch(q, /FILTER\(BOUND\(\?netWkt\) \|\| BOUND\(\?directWkt\)\)/);
 });
 
 test("greece filters on its RINF uopid prefix GR, not its registry code EL", () => {

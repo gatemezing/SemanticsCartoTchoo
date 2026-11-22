@@ -122,6 +122,9 @@ const OPERATIONAL_POINTS_SOURCE = "operational-points";
 const SECTIONS_OF_LINE_SOURCE = "sections-of-line";
 const TUNNELS_SOURCE = "tunnels";
 const PRIMARY_LOCATIONS_SOURCE = "primary-locations";
+/** Primary-location rings are drawn only from this zoom on (see the layer).
+ *  The toolbar uses it to say "zoom in to see" below it. */
+export const PRIMARY_LOCATIONS_MIN_ZOOM = 8;
 const infraPointsSource = (kind: InfrastructureKind) => `infra-${kind}-points`;
 const infraShapesSource = (kind: InfrastructureKind) => `infra-${kind}-shapes`;
 const infraMarkerLayer = (kind: InfrastructureKind) => `infra-${kind}-markers`;
@@ -289,6 +292,27 @@ export function MapView({
   sectionsDataRef.current = sectionsData;
   const infrastructureRef = useRef(infrastructure);
   infrastructureRef.current = infrastructure;
+  // The load handler runs once, after the map's first complete render,
+  // which waits for basemap tiles and can come seconds after mount. It
+  // must seed sources from the latest props, not the ones captured at
+  // mount. Tunnels and primary locations usually arrive after the core
+  // layers, because their queries are slower. Before this, data that
+  // arrived in that window went to a source that didn't exist yet, the
+  // layer was then seeded empty, and it never appeared.
+  const latestData = useRef({
+    operationalPoints,
+    tunnels,
+    primaryLocations,
+    hiddenOpTypeKeys,
+    highlightedSections,
+  });
+  latestData.current = {
+    operationalPoints,
+    tunnels,
+    primaryLocations,
+    hiddenOpTypeKeys,
+    highlightedSections,
+  };
 
   useEffect(() => {
     if (!containerRef.current) return;
@@ -323,7 +347,11 @@ export function MapView({
         id: "sections-highlight",
         type: "line",
         source: SECTIONS_OF_LINE_SOURCE,
-        filter: expr(["in", ["get", "rinfUri"], ["literal", []]]),
+        filter: expr([
+          "in",
+          ["get", "rinfUri"],
+          ["literal", [...latestData.current.highlightedSections]],
+        ]),
         layout: { "line-cap": "round", "line-join": "round" },
         paint: { "line-width": 9, "line-opacity": 0.4 },
       });
@@ -364,7 +392,7 @@ export function MapView({
         paint: { "line-color": "#000000", "line-width": 10, "line-opacity": 0 },
       });
 
-      map.addSource(TUNNELS_SOURCE, { type: "geojson", data: tunnels });
+      map.addSource(TUNNELS_SOURCE, { type: "geojson", data: latestData.current.tunnels });
       map.addLayer({
         id: "tunnels-layer",
         type: "line",
@@ -395,7 +423,10 @@ export function MapView({
         });
       }
 
-      map.addSource(PRIMARY_LOCATIONS_SOURCE, { type: "geojson", data: primaryLocations });
+      map.addSource(PRIMARY_LOCATIONS_SOURCE, {
+        type: "geojson",
+        data: latestData.current.primaryLocations,
+      });
       map.addLayer({
         id: "primary-locations-layer",
         type: "circle",
@@ -403,11 +434,11 @@ export function MapView({
         // Only from a middling zoom on — at country-wide view, ~50% of
         // points having a ring turned the whole map into a solid wash of
         // purple and drowned out the opType colors it's meant to sit beside.
-        minzoom: 8,
+        minzoom: PRIMARY_LOCATIONS_MIN_ZOOM,
         paint: {
           // Thin, semi-transparent halo just outside the operational-point
-          // dot. Rings with Wikidata-sourced accessibility data recolor to
-          // gold (see Legend for what each ring color means).
+          // dot. Rings matched to a Wikidata station recolor to gold (see
+          // Legend for what each ring color means).
           "circle-radius": ["interpolate", ["linear"], ["zoom"], 8, 5, 14, 9],
           "circle-color": "rgba(0,0,0,0)",
           "circle-stroke-color": expr(["case", ["has", "wikidata"], "#d97706", "#7c3aed"]),
@@ -436,13 +467,13 @@ export function MapView({
 
       map.addSource(OPERATIONAL_POINTS_SOURCE, {
         type: "geojson",
-        data: withOpTypeKey(operationalPoints),
+        data: withOpTypeKey(latestData.current.operationalPoints),
       });
       map.addLayer({
         id: "operational-points-layer",
         type: "circle",
         source: OPERATIONAL_POINTS_SOURCE,
-        filter: expr(hiddenOpTypeKeysFilterExpression(hiddenOpTypeKeys)),
+        filter: expr(hiddenOpTypeKeysFilterExpression(latestData.current.hiddenOpTypeKeys)),
         paint: {
           "circle-radius": ["interpolate", ["linear"], ["zoom"], 5, 2, 12, 6],
           "circle-color": expr(opTypeColorMatchExpression()),

@@ -28,7 +28,13 @@ import { LineProfilePanel } from "./components/LineProfilePanel";
 import { LoadingOverlay } from "./components/LoadingOverlay";
 import { OptionalLayerWarning } from "./components/OptionalLayerWarning";
 import { SearchBox } from "./components/SearchBox";
-import { Toolbar, type ExportAction, type InfrastructureStatus } from "./components/Toolbar";
+import {
+  Toolbar,
+  statusText,
+  type ExportAction,
+  type InfrastructureStatus,
+  type LayerStatus,
+} from "./components/Toolbar";
 import {
   combinedGeoJson,
   downloadText,
@@ -38,7 +44,12 @@ import {
 } from "./export/download";
 import { PARAMETER_LABELS, parameterValueText, scaleFor } from "./map/dataColors";
 import { INFRA_LABELS } from "./map/infrastructureMarkers";
-import { MapView, type FitBoundsTarget, type FlyToTarget } from "./map/MapView";
+import {
+  MapView,
+  PRIMARY_LOCATIONS_MIN_ZOOM,
+  type FitBoundsTarget,
+  type FlyToTarget,
+} from "./map/MapView";
 import {
   DEFAULT_COUNTRY,
   DEFAULT_VIEWPORT,
@@ -122,6 +133,15 @@ export function App() {
   const viewportRef = useRef<ViewportState>(
     initialRoute.viewport ?? DEFAULT_VIEWPORT,
   );
+  // Only whether the primary-location rings are drawn at this zoom, so a
+  // pan doesn't re-render the app.
+  const [belowPrimaryLocationsZoom, setBelowPrimaryLocationsZoom] = useState(
+    () => viewportRef.current.zoom < PRIMARY_LOCATIONS_MIN_ZOOM,
+  );
+  const rememberViewport = (viewport: ViewportState) => {
+    viewportRef.current = viewport;
+    setBelowPrimaryLocationsZoom(viewport.zoom < PRIMARY_LOCATIONS_MIN_ZOOM);
+  };
   const isFirstSelectionEffect = useRef(true);
   /** Set while applying a Back/Forward navigation, so the state changes it
    *  causes don't push a fresh history entry on top of the one we just
@@ -287,7 +307,7 @@ export function App() {
   // Layer, colour and profile settings are view settings, not navigation,
   // so they replace too.
   const handleViewportChange = (viewport: ViewportState) => {
-    viewportRef.current = viewport;
+    rememberViewport(viewport);
     window.history.replaceState(null, "", urlFor(country, viewport, selection));
   };
 
@@ -321,7 +341,7 @@ export function App() {
     if (info) {
       // Set synchronously so the URL is right immediately, rather than
       // waiting for the flyTo animation's own moveend to update it.
-      viewportRef.current = info.defaultViewport;
+      rememberViewport(info.defaultViewport);
       setFlyTo({ ...info.defaultViewport, nonce: Date.now() });
     }
     window.history.pushState(
@@ -369,7 +389,7 @@ export function App() {
       setLineIri(route.lineProfile);
       setLineProfileOpen(route.lineProfile !== null);
       if (route.viewport) {
-        viewportRef.current = route.viewport;
+        rememberViewport(route.viewport);
         setFlyTo({ ...route.viewport, nonce: Date.now() });
       }
     };
@@ -429,6 +449,22 @@ export function App() {
   const countryLabel =
     countries.data?.find((c) => c.code === country)?.label ?? country;
 
+  // Tunnels and primary locations load after the core layers (slower
+  // queries) and primary locations only draw from a middling zoom, so the
+  // Layers menu says which of these is why nothing shows yet.
+  const featureStatus = (q: { error: unknown; data?: { features: unknown[] } }): LayerStatus =>
+    q.error ? "error" : q.data ? q.data.features.length : "loading";
+  const primaryLocationsCount = primaryLocations.data?.features.length ?? 0;
+  const layerNotes: Partial<Record<LayerId, string>> = {
+    tunnels: statusText(featureStatus(tunnels), countryLabel),
+    "primary-locations": [
+      statusText(featureStatus(primaryLocations), countryLabel),
+      primaryLocationsCount > 0 && belowPrimaryLocationsZoom && "zoom in to see",
+    ]
+      .filter(Boolean)
+      .join(" · "),
+  };
+
   return (
     <div style={{ position: "absolute", inset: 0 }}>
       {allLoaded && (
@@ -470,6 +506,7 @@ export function App() {
           />
           <Toolbar
             hiddenLayers={hiddenLayers}
+            layerNotes={layerNotes}
             onToggleLayer={(layer) =>
               setHiddenLayers((h) =>
                 h.includes(layer) ? h.filter((l) => l !== layer) : [...h, layer],
