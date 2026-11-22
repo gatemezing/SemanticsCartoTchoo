@@ -13,6 +13,8 @@ import {
   fetchInfrastructure,
   fetchOperationalPoints,
   fetchPrimaryLocations,
+  fetchOperationalPointWikidata,
+  fetchWifiSummary,
   fetchSectionParameters,
   fetchSectionsOfLine,
   fetchTunnels,
@@ -28,6 +30,7 @@ import { LineProfilePanel } from "./components/LineProfilePanel";
 import { LoadingOverlay } from "./components/LoadingOverlay";
 import { OptionalLayerWarning } from "./components/OptionalLayerWarning";
 import { SearchBox } from "./components/SearchBox";
+import { WifiDialog } from "./components/WifiDialog";
 import {
   Toolbar,
   statusText,
@@ -44,6 +47,7 @@ import {
 } from "./export/download";
 import { PARAMETER_LABELS, parameterValueText, scaleFor } from "./map/dataColors";
 import { INFRA_LABELS } from "./map/infrastructureMarkers";
+import type { WifiKey } from "./map/wifi";
 import {
   MapView,
   PRIMARY_LOCATIONS_MIN_ZOOM,
@@ -117,6 +121,7 @@ export function App() {
     initialRoute.shownInfrastructure,
   );
   const [colourBy, setColourBy] = useState<TrackParameterId | null>(initialRoute.colourBy);
+  const [wifiFilter, setWifiFilter] = useState<WifiKey | null>(initialRoute.wifiFilter);
   const [lineProfileOpen, setLineProfileOpen] = useState(initialRoute.lineProfile !== null);
   const [lineIri, setLineIri] = useState<string | null>(initialRoute.lineProfile);
   const [lineProfile, setLineProfile] = useState<LineProfile | null>(null);
@@ -124,7 +129,7 @@ export function App() {
   const [themePreference, setThemePreference] = useState<ThemePreference>(readThemePreference);
   const theme = useResolvedTheme(themePreference);
   const isPhone = useIsPhone();
-  const [dialog, setDialog] = useState<"datasets" | "about" | null>(null);
+  const [dialog, setDialog] = useState<"datasets" | "about" | "wifi" | null>(null);
   const [flyTo, setFlyTo] = useState<FlyToTarget | null>(null);
   const [fitBounds, setFitBounds] = useState<FitBoundsTarget | null>(null);
   const [hiddenOpTypeKeys, setHiddenOpTypeKeys] = useState<Set<string>>(
@@ -173,6 +178,21 @@ export function App() {
     queryKey: ["primary-locations", country],
     queryFn: () => fetchPrimaryLocations(country),
     retry: false,
+  });
+  // Wikidata enrichment for the Wi-Fi filter: like the layers above, a
+  // failure only costs the filter, never the map.
+  const opWikidata = useQuery({
+    queryKey: ["op-wikidata", country],
+    queryFn: () => fetchOperationalPointWikidata(country),
+    retry: false,
+  });
+  // Europe-wide station counts: one cached request, also the source of the
+  // legend's per-country station count, so the two always agree.
+  const wifiSummary = useQuery({
+    queryKey: ["wifi-summary"],
+    queryFn: fetchWifiSummary,
+    retry: false,
+    staleTime: Infinity,
   });
   // Opt-in layers: only fetched once switched on.
   const infrastructureQueries = useQueries({
@@ -299,6 +319,7 @@ export function App() {
         shownInfrastructure,
         colourBy,
         lineProfile: lineProfileOpen ? lineIri : null,
+        wifiFilter,
       },
     );
 
@@ -314,7 +335,7 @@ export function App() {
   useEffect(() => {
     window.history.replaceState(null, "", urlFor(country, viewportRef.current, selection));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [hiddenLayers, openRailwayMap, shownInfrastructure, colourBy, lineProfileOpen, lineIri]);
+  }, [hiddenLayers, openRailwayMap, shownInfrastructure, colourBy, lineProfileOpen, lineIri, wifiFilter]);
 
   const toggleOpTypeKeys = (keys: string[]) => {
     setHiddenOpTypeKeys((prev) => {
@@ -386,6 +407,7 @@ export function App() {
       setOpenRailwayMap(route.openRailwayMap);
       setShownInfrastructure(route.shownInfrastructure);
       setColourBy(route.colourBy);
+      setWifiFilter(route.wifiFilter);
       setLineIri(route.lineProfile);
       setLineProfileOpen(route.lineProfile !== null);
       if (route.viewport) {
@@ -490,6 +512,8 @@ export function App() {
             flyTo={flyTo}
             fitBounds={fitBounds}
             hiddenOpTypeKeys={hiddenOpTypeKeys}
+            opWikidata={opWikidata.data}
+            wifiFilter={wifiFilter}
           />
           <SearchBox
             operationalPoints={operationalPoints.data!}
@@ -546,6 +570,16 @@ export function App() {
             onToggleOpTypeKeys={toggleOpTypeKeys}
             infrastructure={infrastructure}
             sectionsColoured={sectionColourOf !== null}
+            wifi={{
+              stations: opWikidata.data,
+              status: opWikidata.isError ? "error" : opWikidata.isLoading ? "loading" : "ready",
+              filter: wifiFilter,
+              onFilter: setWifiFilter,
+              countryStations: wifiSummary.data?.countries.find((c) => c.code === country)?.stations,
+              europeFree: wifiSummary.data?.total.stations.free,
+              countryLabel,
+              onOpenEurope: () => setDialog("wifi"),
+            }}
           />
           {/* Under the search box: the colour key and layer warnings stay
               clear of the bottom, where the line profile opens. */}
@@ -604,6 +638,7 @@ export function App() {
           {effectiveSelection && (
             <DetailPanel
               selection={effectiveSelection}
+              opWikidata={opWikidata.data}
               onClose={() => setSelection(null)}
               onOpenLineProfile={(iri) => {
                 fittedLine.current = null;
@@ -620,6 +655,13 @@ export function App() {
             />
           )}
           {dialog === "about" && <AboutDialog onClose={() => setDialog(null)} />}
+          {dialog === "wifi" && (
+            <WifiDialog
+              summary={wifiSummary}
+              currentCountry={country}
+              onClose={() => setDialog(null)}
+            />
+          )}
         </>
       )}
       {isLoading && <LoadingOverlay />}

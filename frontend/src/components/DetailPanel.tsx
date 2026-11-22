@@ -1,6 +1,8 @@
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import type {
+  OperationalPointWikidata,
+  OperationalPointWikidataMap,
   SectionOfLineDetail,
   SectionParameterValue,
   TrackParameterId,
@@ -9,6 +11,7 @@ import { fetchOperationalPointDetail, fetchSectionDetail } from "../api/client";
 import { PARAMETER_LABELS, parameterValueText } from "../map/dataColors";
 import { compactIri } from "../rdf/prefixes";
 import { rinfRecordUrl } from "../rdf/rinfRecord";
+import { WIFI_LABELS } from "../map/wifi";
 import { DescribeView } from "./DescribeView";
 import {
   describeFieldValue,
@@ -31,6 +34,8 @@ interface Props {
   onClose: () => void;
   /** Opens the line profile of a national line (from a section's panel). */
   onOpenLineProfile: (lineIri: string) => void;
+  /** The Wikidata station matched to each operational point, when loaded. */
+  opWikidata?: OperationalPointWikidataMap;
 }
 
 type Tab = "properties" | "describe";
@@ -66,7 +71,7 @@ function TabButton({
   );
 }
 
-function OperationalPointBody({ uopid }: { uopid: string }) {
+function OperationalPointBody({ uopid, wikidata }: { uopid: string; wikidata?: OperationalPointWikidata }) {
   const [tab, setTab] = useState<Tab>("properties");
   useEffect(() => setTab("properties"), [uopid]);
   const { data, isLoading, error } = useQuery({
@@ -145,11 +150,37 @@ function OperationalPointBody({ uopid }: { uopid: string }) {
               codes.length > 0 ? codes.join(", ") : "None",
             )}
           />
+          {wikidata && <WikidataStationRow station={wikidata} />}
 
           <RinfRecordLink iri={data.rinfUri} />
         </>
       )}
     </>
+  );
+}
+
+const MATCHED_BY: Record<OperationalPointWikidata["matchedBy"], string> = {
+  "primary-location-code": "primary location code",
+  "era-id": "ERA ID",
+  "uic-station-code": "UIC station code, within 1 km",
+};
+
+/** The Wikidata station matched to the point, with the Wi-Fi it records:
+ *  the source of the map's Wi-Fi filter for this point. */
+function WikidataStationRow({ station }: { station: OperationalPointWikidata }) {
+  const iri = `http://www.wikidata.org/entity/${station.qid}`;
+  return (
+    <div style={{ fontSize: 13, marginTop: 6 }}>
+      <strong>Wikidata station:</strong>{" "}
+      <a href={iri} title={iri} target="_blank" rel="noopener noreferrer">
+        {compactIri(iri)}
+      </a>
+      {station.label && <> ({station.label})</>}
+      <div style={{ color: "var(--text-muted)" }}>
+        {station.wifi ? WIFI_LABELS[station.wifi] : "No Wi-Fi recorded"} · matched on {MATCHED_BY[station.matchedBy]}{" "}
+        {station.matchedValue}
+      </div>
+    </div>
   );
 }
 
@@ -318,7 +349,7 @@ function SectionBody({
   );
 }
 
-export function DetailPanel({ selection, onClose, onOpenLineProfile }: Props) {
+export function DetailPanel({ selection, onClose, onOpenLineProfile, opWikidata }: Props) {
   return (
     <div
       className="detail-panel"
@@ -348,7 +379,7 @@ export function DetailPanel({ selection, onClose, onOpenLineProfile }: Props) {
       </button>
 
       {selection.kind === "operational-point" ? (
-        <OperationalPointBody uopid={selection.uopid} />
+        <OperationalPointBody uopid={selection.uopid} wikidata={opWikidata?.[selection.uopid]} />
       ) : selection.kind === "section" ? (
         <SectionBody iri={selection.iri} onOpenLineProfile={onOpenLineProfile} />
       ) : (

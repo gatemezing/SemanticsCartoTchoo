@@ -18,6 +18,7 @@ import { registerSectionDetailRoute } from "./routes/sectionDetail.js";
 import { registerSectionParametersRoute } from "./routes/sectionParameters.js";
 import { registerSectionsOfLineRoute } from "./routes/sectionsOfLine.js";
 import { registerTunnelsRoute } from "./routes/tunnels.js";
+import { registerWikidataRoutes } from "./routes/wikidata.js";
 
 export interface AppOptions {
   logger?: boolean;
@@ -79,6 +80,7 @@ export async function buildApp({
   registerSectionParametersRoute(app);
   registerSectionDetailRoute(app);
   registerLinesRoutes(app);
+  registerWikidataRoutes(app);
 
   app.get("/api/health", { config: { rateLimit: false } }, async () => ({
     status: "ok",

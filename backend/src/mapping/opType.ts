@@ -33,6 +33,16 @@ const OP_TYPE_CODE = /\/concepts\/op-types\/(?:OperationalPointTypes\/)?(\d+)$/;
 
 const PROVIDER_CONCEPT = /\/concepts\/op-types\/OperationalPointTypes\/\d+$/;
 
+/** ERA's numeric code of an op-type concept ("10" for station), from ERA's
+ *  IRI or a provider's own (see above). */
+export function opTypeCode(uri: string | undefined): string | undefined {
+  return uri ? OP_TYPE_CODE.exec(uri)?.[1] : undefined;
+}
+
+export function opTypeLabelOfCode(code: string): string | undefined {
+  return ERA_OP_TYPE_LABELS[code];
+}
+
 export function opTypeFieldValue(
   uriTerm: SparqlTerm | undefined,
   labelTerm: SparqlTerm | undefined,

@@ -71,6 +71,8 @@ async function mockNetwork(page: Page): Promise<void> {
       });
     }
     if (path === "/api/datasets") return route.fulfill(json(fixture("datasets.json")));
+    if (path === "/api/wikidata/stations") return route.fulfill(json(fixture("wikidata-stations.json")));
+    if (path === "/api/wikidata/wifi") return route.fulfill(json(fixture("wifi-summary.json")));
     if (path === "/api/infrastructure/signals") return route.fulfill(json(fixture("signals.json")));
     if (path.startsWith("/api/infrastructure/")) return route.fulfill(json(EMPTY_COLLECTION));
     return route.fulfill(notFound(`no fixture for ${path}`));

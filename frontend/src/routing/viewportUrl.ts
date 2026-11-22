@@ -15,13 +15,16 @@
  *  - `show=<kind>,<kind>`: opt-in infrastructure layers (level crossings,
  *    bridges, signals, switches) that are on.
  *  - `col=<parameter>`: sections of line coloured by a track parameter.
- *  - `lp=<IRI>`: the line profile is open on this national line. */
+ *  - `lp=<IRI>`: the line profile is open on this national line.
+ *  - `wifi=<key>`: only operational points with this Wi-Fi access in
+ *    Wikidata (free, paid, available, none, no-data). */
 import {
   INFRASTRUCTURE_KINDS,
   type InfrastructureKind,
   TRACK_PARAMETERS,
   type TrackParameterId,
 } from "@carto-rinf/shared-types";
+import { isWifiKey, type WifiKey } from "../map/wifi";
 import { safeHref } from "../security/safeHref";
 
 export interface ViewportState {
@@ -62,6 +65,7 @@ export interface RouteState {
   shownInfrastructure: InfrastructureKind[];
   colourBy: TrackParameterId | null;
   lineProfile: string | null;
+  wifiFilter: WifiKey | null;
 }
 
 export const DEFAULT_VIEWPORT: ViewportState = { lat: 46.6, lon: 2.5, zoom: 5 };
@@ -78,6 +82,7 @@ type QueryState = Pick<
   | "shownInfrastructure"
   | "colourBy"
   | "lineProfile"
+  | "wifiFilter"
 >;
 
 function parseQuery(search: string): QueryState {
@@ -99,6 +104,7 @@ function parseQuery(search: string): QueryState {
       ? (params.get("col") as TrackParameterId)
       : null,
     lineProfile: safeHref(params.get("lp")) ?? null,
+    wifiFilter: isWifiKey(params.get("wifi")) ? (params.get("wifi") as WifiKey) : null,
   };
 }
 
@@ -149,6 +155,7 @@ export interface FormatRouteOptions {
   shownInfrastructure?: readonly InfrastructureKind[];
   colourBy?: TrackParameterId | null;
   lineProfile?: string | null;
+  wifiFilter?: WifiKey | null;
 }
 
 export function formatRoute(
@@ -178,6 +185,7 @@ export function formatRoute(
   }
   if (options.colourBy) params.set("col", options.colourBy);
   if (options.lineProfile) params.set("lp", options.lineProfile);
+  if (options.wifiFilter) params.set("wifi", options.wifiFilter);
   const query = params.toString();
   return query ? `${path}?${query}` : path;
 }

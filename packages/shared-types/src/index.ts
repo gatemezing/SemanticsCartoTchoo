@@ -170,6 +170,54 @@ export type TunnelsCollection = GeoJSON.FeatureCollection<
  *  doesn't have it; `sourceUrl` is mandatory whenever this object exists at
  *  all, since showing any Wikidata-sourced fact without a way to trace it
  *  back to Wikidata is the one thing this feature must never do. */
+/** A station's Wi-Fi access in Wikidata (P2848): "available" is Wikidata's
+ *  "yes", with no cost stated. */
+export type WifiAccess = "free" | "paid" | "available" | "none";
+export const WIFI_ACCESS_VALUES: readonly WifiAccess[] = ["free", "paid", "available", "none"];
+
+/** The Wikidata station matched to one operational point: through one of
+ *  its primary locations (any of the three keys), or directly by its ERA ID
+ *  when it has none. When several match, the one recording Wi-Fi wins. */
+export interface OperationalPointWikidata {
+  qid: string;
+  label?: string;
+  wifi?: WifiAccess;
+  matchedBy: WikidataStationInfo["matchedBy"];
+  matchedValue: string;
+}
+
+/** GET /api/wikidata/stations?country=XX: keyed by uopid. Points without a
+ *  match are absent. */
+export type OperationalPointWikidataMap = Record<string, OperationalPointWikidata>;
+
+/** Counts of stations by Wi-Fi access. */
+export type WifiCounts = Record<WifiAccess, number>;
+
+/** GET /api/wikidata/wifi: the RINF stations whose Wikidata item records
+ *  Wi-Fi access, per country. A station is a primary location whose
+ *  operational point has a station era:opType (see `stationTypes`); its
+ *  Wi-Fi is that of the Wikidata item matched to it, on the map's keys. */
+export interface WifiSummary {
+  countries: {
+    code: string;
+    label: string;
+    /** RINF stations (distinct primary location codes) by Wi-Fi access. */
+    stations: WifiCounts;
+    /** Wikidata items in the country (P17) recording Wi-Fi and carrying a
+     *  station key, matched to RINF or not: the gap shows what's unmatched. */
+    wikidata: WifiCounts;
+  }[];
+  /** Stations summed over countries; Wikidata items counted once even when
+   *  in two countries (a border station). */
+  total: { stations: WifiCounts; wikidata: WifiCounts };
+  /** The era:opType concepts counted as stations, by ERA code ("10"). */
+  stationTypes: { code: string; label: string }[];
+  definition: string;
+  /** The SPARQL sent to Wikidata, so anyone can re-run it. */
+  query: string;
+  fetchedAt: string;
+}
+
 export interface WikidataStationInfo {
   qid: string;
   label?: string;
@@ -180,7 +228,7 @@ export interface WikidataStationInfo {
    *  Q24202480 → "paid", Q6452715 "yes" → "available" (cost not stated),
    *  Q1814990 "no" → "none". Measured 2026-11 on stations with a PLC or
    *  UIC code: 828 none, 184 free, 15 available, 1 paid. */
-  wifi?: "free" | "paid" | "available" | "none";
+  wifi?: WifiAccess;
   platformCount?: number;
   /** How the station was matched, strongest key first:
    *  - "primary-location-code": Wikidata's PLC (P12783) equals the code.

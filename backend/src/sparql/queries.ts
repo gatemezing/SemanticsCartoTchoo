@@ -453,3 +453,46 @@ export function buildDescribeConstructQuery(iri: string): string {
   assertSafeIri(iri);
   return `CONSTRUCT { <${iri}> ?p ?o } WHERE { <${iri}> ?p ?o } LIMIT ${TURTLE_EXPORT_LIMIT}`;
 }
+
+const SAFE_PRIMARY_LOCATION_CODE = /^[A-Z]{2}[0-9A-Z]{1,12}$/;
+const SAFE_UOPID = /^[\p{L}\p{N} +-]{1,20}$/u;
+
+/** The current primary locations behind a set of codes, with their
+ *  operational point's uopid, type and position: the RINF side of the
+ *  Europe-wide Wi-Fi count. The codes come from Wikidata (primary location
+ *  codes, UIC-derived ones, and ERA IDs, which are uopids), so anything
+ *  that doesn't look like a code is dropped rather than interpolated.
+ *  One row per primary location and operational point: some primary
+ *  locations are referenced by two points (Valenciennes' FR08165 by the
+ *  station and by a junction), and the type and uopid must come from the
+ *  same one. Validity and geometry follow buildPrimaryLocationsQuery. */
+export function buildPrimaryLocationsByCodeQuery(
+  countryPrefix: string,
+  plCodes: readonly string[],
+  uopids: readonly string[],
+): string | null {
+  assertSafeCountryPrefix(countryPrefix);
+  const codes = [...new Set(plCodes)].filter((c) => SAFE_PRIMARY_LOCATION_CODE.test(c));
+  const ops = [...new Set(uopids)].filter((u) => SAFE_UOPID.test(u));
+  if (codes.length === 0 && ops.length === 0) return null;
+  const values = (v: string, xs: string[]) => `VALUES ${v} { ${xs.map((x) => `"${x}"`).join(" ")} }`;
+  const branches = [
+    codes.length > 0 && `{ ${values("?plCodeX", codes)} ?pl era:primaryLocationCode ?plCodeX . ?opX era:primaryLocation ?pl . }`,
+    ops.length > 0 && `{ ${values("?opUopidX", ops)} ?opX era:uopid ?opUopidX ; era:primaryLocation ?pl . ?pl era:primaryLocationCode ?plCodeX . }`,
+  ].filter(Boolean);
+  return `PREFIX era: <${ERA}>
+PREFIX geo: <http://www.opengis.net/ont/geosparql#>
+${TIME_PREFIX}
+SELECT ?pl ?opX (SAMPLE(?opUopidX) AS ?opUopid) (SAMPLE(?plCodeX) AS ?plCode) (SAMPLE(?opTypeX) AS ?opTypeURI)
+       (COALESCE(SAMPLE(?netWkt), SAMPLE(?directWkt), SAMPLE(?opNetWkt), SAMPLE(?opDirectWkt)) AS ?wkt) WHERE {
+  ${branches.join("\n  UNION\n  ")}
+  ?opX a era:OperationalPoint ; era:uopid ?opUopidX .
+  FILTER(STRSTARTS(?opUopidX, "${uopidPrefixFor(countryPrefix)}"))
+  ${validNow("?opX", "Op", strategyFor(countryPrefix))}
+  OPTIONAL { ?opX era:opType ?opTypeX . }
+  OPTIONAL { ?pl era:netReference/geo:hasGeometry/geo:asWKT ?netWkt . }
+  OPTIONAL { ?pl geo:hasGeometry/geo:asWKT ?directWkt . }
+  OPTIONAL { ?opX era:netReference/geo:hasGeometry/geo:asWKT ?opNetWkt . }
+  OPTIONAL { ?opX geo:hasGeometry/geo:asWKT ?opDirectWkt . }
+} GROUP BY ?pl ?opX`;
+}

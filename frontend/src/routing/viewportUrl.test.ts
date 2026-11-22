@@ -15,6 +15,7 @@ test("older links without a query string still parse", () => {
     shownInfrastructure: [],
     colourBy: null,
     lineProfile: null,
+    wifiFilter: null,
   });
 });
 
@@ -80,4 +81,13 @@ test("unknown colour parameters and non-http line IRIs are ignored", () => {
   assert.equal(parsed.colourBy, null);
   assert.equal(parsed.lineProfile, null);
   assert.deepEqual(parsed.shownInfrastructure, ["signals"]);
+});
+
+test("round-trips the Wi-Fi filter and ignores unknown values", () => {
+  const url = formatRoute("FR", vp, null, { wifiFilter: "free" });
+  assert.match(url, /\?wifi=free$/);
+  const [path, search] = url.split("?");
+  assert.equal(parseRoute(path, `?${search}`).wifiFilter, "free");
+  assert.equal(parseRoute("/FR/", "?wifi=gratis").wifiFilter, null);
+  assert.equal(parseRoute("/FR/", "?wifi=no-data").wifiFilter, "no-data");
 });
